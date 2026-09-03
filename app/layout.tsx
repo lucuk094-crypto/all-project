@@ -39,7 +39,7 @@ export default function RootLayout({
       <body className={`${inter.variable} ${geistSans.variable} ${geistMono.variable} antialiased font-sans`}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
+          defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
