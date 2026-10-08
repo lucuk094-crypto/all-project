@@ -1,321 +1,378 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  ArrowUpRight,
+  ExternalLink,
+  FolderOpen,
+  Github,
+  LayoutGrid,
+  Rows3,
+  Search,
+  SlidersHorizontal,
+  Sparkles,
+  X,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { FolderOpen, Search, Filter, ArrowLeft, Grid3X3, List, Terminal } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Input, Select } from '@/components/ui/input';
+import { Skeleton } from '@/components/ui/badge';
 import ProjectCard from '@/components/ProjectCard';
 import { GridBackground } from '@/components/GridBackground';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import { Project, getPublishedProjects } from '@/lib/supabaseProjectService';
+import Reveal from '@/components/Reveal';
+import type { Project } from '@/lib/supabaseProjectService';
+import { getPublishedProjects } from '@/lib/supabaseProjectService';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { DEMO_PROJECTS } from '@/lib/demoProjects';
+import DemoNotice from '@/components/DemoNotice';
 
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedTech, setSelectedTech] = useState<string>('all');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('all');
+  const [tech, setTech] = useState('all');
+  const [view, setView] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
-    async function loadProjects() {
+    let alive = true;
+    (async () => {
       try {
-        const data = await getPublishedProjects();
-        setProjects(data);
-        setFilteredProjects(data);
-      } catch (error) {
-        console.error('Error loading projects:', error);
+        const data = isSupabaseConfigured ? await getPublishedProjects() : DEMO_PROJECTS;
+        if (alive) setProjects(data);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
-    }
-
-    loadProjects();
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  // Extract unique categories and technologies
-  const categories = ['all', ...Array.from(new Set(projects.map(p => p.category)))];
-  const technologies = ['all', ...Array.from(new Set(projects.flatMap(p => p.technologies)))];
+  const categories = useMemo(
+    () => ['all', ...Array.from(new Set(projects.map((p) => p.category).filter(Boolean)))],
+    [projects],
+  );
+  const technologies = useMemo(
+    () => ['all', ...Array.from(new Set(projects.flatMap((p) => p.technologies ?? [])))].sort(),
+    [projects],
+  );
 
-  // Filter projects
-  useEffect(() => {
-    let filtered = projects;
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return projects.filter((p) => {
+      const matchQuery =
+        !q ||
+        p.title?.toLowerCase().includes(q) ||
+        p.tagline?.toLowerCase().includes(q) ||
+        p.description?.toLowerCase().includes(q) ||
+        (p.technologies ?? []).some((t) => t.toLowerCase().includes(q));
+      const matchCategory = category === 'all' || p.category === category;
+      const matchTech = tech === 'all' || (p.technologies ?? []).includes(tech);
+      return matchQuery && matchCategory && matchTech;
+    });
+  }, [projects, query, category, tech]);
 
-    // Search filter
-    if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
-      filtered = filtered.filter(p => 
-        p.title.toLowerCase().includes(lower) ||
-        p.tagline.toLowerCase().includes(lower) ||
-        p.description.toLowerCase().includes(lower) ||
-        p.technologies.some(t => t.toLowerCase().includes(lower))
-      );
-    }
-
-    // Category filter
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(p => p.category === selectedCategory);
-    }
-
-    // Technology filter
-    if (selectedTech !== 'all') {
-      filtered = filtered.filter(p => p.technologies.includes(selectedTech));
-    }
-
-    setFilteredProjects(filtered);
-  }, [searchTerm, selectedCategory, selectedTech, projects]);
+  const hasFilter = query !== '' || category !== 'all' || tech !== 'all';
+  const resetFilters = () => {
+    setQuery('');
+    setCategory('all');
+    setTech('all');
+  };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white transition-colors">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 dark:bg-black/80 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <Link href="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 bg-black dark:bg-white rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                <Terminal className="w-6 h-6 text-white dark:text-black" />
-              </div>
-              <span className="text-xl font-bold text-black dark:text-white">Portfolio</span>
-            </Link>
-            <div className="flex items-center gap-4">
-              <Link href="/projects">
-                <Button variant="ghost" className="text-black dark:text-white font-semibold">
-                  Projects
-                </Button>
-              </Link>
-              <Link href="/about">
-                <Button variant="ghost" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white">
-                  About
-                </Button>
-              </Link>
-              <ThemeToggle />
-              <Link href="/admin">
-                <Button className="bg-black dark:bg-white hover:shadow-lg dark:hover:shadow-lg text-white dark:text-black rounded-full">
-                  Admin
-                </Button>
-              </Link>
+    <div className="relative">
+      <DemoNotice />
+
+      {/* ── Header ─────────────────────────────────────── */}
+      <section className="relative overflow-hidden px-4 pb-12 pt-6 sm:px-6 sm:pb-16 sm:pt-10">
+        <GridBackground />
+        <div className="relative mx-auto w-full max-w-6xl">
+          <Reveal>
+            <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--hairline)] bg-[var(--surface)]/70 px-3 py-1.5 backdrop-blur-md">
+              <FolderOpen className="h-3.5 w-3.5 text-[var(--muted)]" strokeWidth={1.75} />
+              <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-[var(--muted)]">
+                Koleksi karya
+              </span>
             </div>
-          </div>
-        </div>
-      </nav>
+          </Reveal>
 
-      {/* Header */}
-      <section className="relative pt-32 pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        <GridBackground variant="dots" />
-        <div className="max-w-7xl mx-auto relative z-10">
-          <motion.div
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-          >
-            <Link href="/">
-              <Button variant="ghost" className="mb-6 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Home
-              </Button>
-            </Link>
-          </motion.div>
+          <Reveal delay={0.06}>
+            <h1 className="text-display text-[2.25rem] sm:text-5xl lg:text-6xl">
+              <span className="text-gradient">Semua Project</span>
+            </h1>
+          </Reveal>
 
-          <motion.div 
-            className="text-center max-w-3xl mx-auto mb-12"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <motion.h1 
-              className="text-5xl md:text-6xl font-bold text-black dark:text-white mb-4"
-              animate={{ 
-                backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-              }}
-              transition={{ 
-                duration: 5,
-                repeat: Infinity,
-                ease: "linear"
-              }}
-            >
-              All Projects
-            </motion.h1>
-            <motion.p 
-              className="text-xl text-gray-600 dark:text-gray-400"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-            >
-              Browse through my collection of {projects.length} web development projects
-            </motion.p>
-          </motion.div>
-
-          {/* Search and Filters */}
-          <motion.div 
-            className="bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-white/10 p-6 mb-8 shadow-lg"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.3 }}
-          >
-            <div className="grid md:grid-cols-4 gap-4">
-              {/* Search */}
-              <motion.div 
-                className="md:col-span-2 relative"
-                whileFocus={{ scale: 1.01 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 dark:text-gray-500" />
-                <Input
-                  type="text"
-                  placeholder="Search projects..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-12 bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 focus:border-black dark:focus:border-white/30 text-black dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 rounded-full transition-all duration-300"
-                />
-              </motion.div>
-
-              {/* Category Filter */}
-              <motion.select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="h-12 px-4 border border-gray-200 dark:border-white/10 rounded-full bg-white/50 dark:bg-white/5 backdrop-blur-xl text-black dark:text-white focus:border-black dark:focus:border-white/30 focus:ring-0 transition-all duration-300 [&>option]:bg-white [&>option]:dark:bg-black [&>option]:text-black [&>option]:dark:text-white"
-                whileFocus={{ scale: 1.01 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <option value="all">All Categories</option>
-                {categories.filter(c => c !== 'all').map((cat) => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </motion.select>
-
-              {/* Technology Filter */}
-              <motion.select
-                value={selectedTech}
-                onChange={(e) => setSelectedTech(e.target.value)}
-                className="h-12 px-4 border border-gray-200 dark:border-white/10 rounded-full bg-white/50 dark:bg-white/5 backdrop-blur-xl text-black dark:text-white focus:border-black dark:focus:border-white/30 focus:ring-0 transition-all duration-300 [&>option]:bg-white [&>option]:dark:bg-black [&>option]:text-black [&>option]:dark:text-white"
-                whileFocus={{ scale: 1.01 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                <option value="all">All Technologies</option>
-                {technologies.filter(t => t !== 'all').map((tech) => (
-                  <option key={tech} value={tech}>{tech}</option>
-                ))}
-              </motion.select>
-            </div>
-
-            {/* Results and View Toggle */}
-            <motion.div 
-              className="flex items-center justify-between mt-6 pt-6 border-t border-gray-200 dark:border-white/10"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.5 }}
-            >
-              <p className="text-sm text-gray-600 dark:text-gray-400">
-                Showing <span className="font-semibold text-black dark:text-white">{filteredProjects.length}</span> of <span className="font-semibold text-black dark:text-white">{projects.length}</span> projects
-              </p>
-              <div className="flex gap-2">
-                <motion.button
-                  onClick={() => setViewMode('grid')}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className={`p-2 rounded-full transition-all duration-300 ${
-                    viewMode === 'grid'
-                      ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg'
-                      : 'bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10'
-                  }`}
-                >
-                  <Grid3X3 className="w-5 h-5" />
-                </motion.button>
-                <motion.button
-                  onClick={() => setViewMode('list')}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  className={`p-2 rounded-full transition-all duration-300 ${
-                    viewMode === 'list'
-                      ? 'bg-black dark:bg-white text-white dark:text-black shadow-lg'
-                      : 'bg-white/50 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10'
-                  }`}
-                >
-                  <List className="w-5 h-5" />
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
+          <Reveal delay={0.12}>
+            <p className="mt-5 max-w-xl text-[0.9375rem] leading-relaxed text-[var(--muted)]">
+              Kumpulan aplikasi web, eksperimen, dan produk digital yang pernah saya bangun. Gunakan
+              pencarian atau filter untuk menemukan yang Anda butuhkan.
+            </p>
+          </Reveal>
         </div>
       </section>
 
-      {/* Projects Grid/List */}
-      <section className="relative pb-20 px-4 sm:px-6 lg:px-8 overflow-hidden">
-        <GridBackground variant="lines" />
-        <div className="max-w-7xl mx-auto relative z-10">
-          {loading ? (
-            <motion.div 
-              className={`grid ${viewMode === 'grid' ? 'md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-8`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-            >
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.1 }}
-                  className="bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl p-6 shadow-sm animate-pulse border border-gray-200/50 dark:border-white/10"
+      {/* ── Filters ────────────────────────────────────── */}
+      <section className="sticky top-[4.5rem] z-30 px-4 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="glass flex flex-col gap-3 rounded-2xl p-3 sm:flex-row sm:items-center">
+            {/* Search */}
+            <div className="relative flex-1">
+              <Search
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--faint)]"
+                strokeWidth={1.75}
+              />
+              <Input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Cari project, teknologi, atau kata kunci..."
+                className="h-11 border-transparent bg-transparent pl-10 hover:border-transparent"
+                aria-label="Cari project"
+              />
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => setQuery('')}
+                  aria-label="Hapus pencarian"
+                  className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-[var(--faint)] transition-colors hover:bg-[var(--accent-soft)] hover:text-[var(--foreground)]"
                 >
-                  <div className="h-48 bg-gray-200 dark:bg-white/10 rounded-xl mb-4"></div>
-                  <div className="h-6 bg-gray-200 dark:bg-white/10 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-white/10 rounded w-1/2"></div>
-                </motion.div>
-              ))}
-            </motion.div>
-          ) : filteredProjects.length > 0 ? (
-            <AnimatePresence mode="wait">
-              <motion.div 
-                key={`${viewMode}-${selectedCategory}-${selectedTech}-${searchTerm}`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.3 }}
-                className={`grid ${viewMode === 'grid' ? 'md:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'} gap-8`}
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal className="hidden h-4 w-4 text-[var(--faint)] sm:block" strokeWidth={1.75} />
+              <Select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="h-11 w-full sm:w-40"
+                aria-label="Filter kategori"
               >
-                {filteredProjects.map((project, index) => (
-                  <ProjectCard key={project.id} project={project} index={index} />
+                {categories.map((c) => (
+                  <option key={c} value={c}>
+                    {c === 'all' ? 'Semua kategori' : c}
+                  </option>
                 ))}
-              </motion.div>
-            </AnimatePresence>
-          ) : (
-            <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.3 }}
-              className="text-center py-20 bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-white/10 shadow-sm"
-            >
-              <motion.div
-                animate={{ 
-                  rotate: [0, 10, -10, 0],
-                  scale: [1, 1.1, 1]
-                }}
-                transition={{ 
-                  duration: 2,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
+              </Select>
+
+              <Select
+                value={tech}
+                onChange={(e) => setTech(e.target.value)}
+                className="h-11 w-full sm:w-40"
+                aria-label="Filter teknologi"
               >
-                <Filter className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              </motion.div>
-              <h3 className="text-2xl font-bold text-black dark:text-white mb-2">No Projects Found</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">Try adjusting your filters or search term</p>
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button
-                  onClick={() => {
-                    setSearchTerm('');
-                    setSelectedCategory('all');
-                    setSelectedTech('all');
-                  }}
-                  variant="outline"
-                  className="border-2 border-gray-200 dark:border-white/20 rounded-full"
+                {technologies.map((t) => (
+                  <option key={t} value={t}>
+                    {t === 'all' ? 'Semua teknologi' : t}
+                  </option>
+                ))}
+              </Select>
+
+              {/* View toggle */}
+              <div className="hidden items-center gap-1 rounded-xl border border-[var(--hairline)] bg-[var(--surface)] p-1 sm:flex">
+                {(
+                  [
+                    { key: 'grid', icon: LayoutGrid, label: 'Grid' },
+                    { key: 'list', icon: Rows3, label: 'List' },
+                  ] as const
+                ).map(({ key, icon: Icon, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setView(key)}
+                    aria-label={`Tampilan ${label}`}
+                    aria-pressed={view === key}
+                    className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                      view === key
+                        ? 'bg-[var(--foreground)] text-[var(--background)]'
+                        : 'text-[var(--muted)] hover:bg-[var(--accent-soft)] hover:text-[var(--foreground)]'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" strokeWidth={1.75} />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Results ────────────────────────────────────── */}
+      <section className="px-4 py-10 sm:px-6">
+        <div className="mx-auto w-full max-w-6xl">
+          <div className="mb-6 flex items-center justify-between">
+            <p className="font-mono text-[0.6875rem] uppercase tracking-[0.16em] text-[var(--faint)]">
+              {loading ? 'Memuat...' : `${filtered.length} project ditemukan`}
+            </p>
+            {hasFilter && !loading && (
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex items-center gap-1.5 text-[0.8125rem] text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+              >
+                <X className="h-3.5 w-3.5" />
+                Reset filter
+              </button>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className="overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--surface)]"
                 >
-                  Clear Filters
+                  <Skeleton className="aspect-[16/10] w-full rounded-none" />
+                  <div className="space-y-3 p-5">
+                    <Skeleton className="h-4 w-2/3" />
+                    <Skeleton className="h-3 w-full" />
+                    <Skeleton className="h-3 w-1/2" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : filtered.length === 0 ? (
+            <Reveal>
+              <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[var(--hairline)] bg-[var(--surface)]/50 px-6 py-24 text-center">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--hairline)] bg-[var(--surface-2)]">
+                  <Search className="h-5 w-5 text-[var(--muted)]" strokeWidth={1.75} />
+                </span>
+                <h3 className="text-base font-semibold">Tidak ada hasil</h3>
+                <p className="max-w-sm text-sm text-[var(--muted)]">
+                  Tidak ada project yang cocok dengan filter Anda. Coba kata kunci lain atau reset
+                  filter.
+                </p>
+                <Button variant="outline" size="sm" onClick={resetFilters} className="mt-2">
+                  Reset filter
                 </Button>
-              </motion.div>
+              </div>
+            </Reveal>
+          ) : view === 'grid' ? (
+            <motion.div layout className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <AnimatePresence mode="popLayout">
+                {filtered.map((project, i) => (
+                  <motion.div
+                    key={project.slug}
+                    layout
+                    initial={{ opacity: 0, scale: 0.96 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.96 }}
+                    transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <ProjectCard project={project} index={i} showIndex priority={i < 3} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          ) : (
+            <motion.div layout className="space-y-3">
+              <AnimatePresence mode="popLayout">
+                {filtered.map((project, i) => (
+                  <motion.div
+                    key={project.slug}
+                    layout
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -12 }}
+                    transition={{ duration: 0.3, delay: i * 0.03, ease: [0.16, 1, 0.3, 1] }}
+                  >
+                    <Link
+                      href={`/projects/${project.slug}`}
+                      className="spotlight-card group flex items-center gap-4 overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-3 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1 hover:border-[color-mix(in_oklab,var(--foreground)_22%,transparent)] sm:gap-5 sm:p-4"
+                      onMouseMove={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
+                        e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
+                      }}
+                    >
+                      <div className="relative h-20 w-28 shrink-0 overflow-hidden rounded-xl bg-[var(--surface-2)] sm:h-24 sm:w-40">
+                        {project.banner ? (
+                          <Image
+                            src={project.banner}
+                            alt={project.title}
+                            fill
+                            sizes="160px"
+                            className="object-cover opacity-90 saturate-[0.35] transition-all duration-700 group-hover:scale-105 group-hover:saturate-100"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center">
+                            <Sparkles className="h-4 w-4 text-[var(--faint)]" strokeWidth={1.5} />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="mb-1.5 flex items-center gap-2">
+                          <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-[var(--faint)]">
+                            {project.category}
+                          </span>
+                          {project.featured && (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-[var(--foreground)] px-2 py-0.5 text-[0.5625rem] font-semibold uppercase tracking-[0.12em] text-[var(--background)]">
+                              <Sparkles className="h-2.5 w-2.5" strokeWidth={2.5} />
+                              Unggulan
+                            </span>
+                          )}
+                        </div>
+                        <h3 className="truncate text-[0.9375rem] font-semibold tracking-tight sm:text-base">
+                          {project.title}
+                        </h3>
+                        <p className="mt-1 line-clamp-1 text-[0.8125rem] text-[var(--muted)]">
+                          {project.tagline}
+                        </p>
+                      </div>
+
+                      <div className="hidden shrink-0 items-center gap-2 lg:flex">
+                        {(project.technologies ?? []).slice(0, 3).map((t) => (
+                          <span
+                            key={t}
+                            className="rounded-md border border-[var(--hairline)] bg-[var(--surface-2)] px-2 py-1 font-mono text-[0.625rem] text-[var(--muted)]"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {project.githubUrl && (
+                          <span
+                            role="button"
+                            tabIndex={-1}
+                            aria-hidden="true"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              window.open(project.githubUrl, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="hidden h-9 w-9 items-center justify-center rounded-xl border border-[var(--hairline)] bg-[var(--surface-2)] text-[var(--muted)] transition-colors hover:text-[var(--foreground)] sm:flex"
+                          >
+                            <Github className="h-4 w-4" strokeWidth={1.75} />
+                          </span>
+                        )}
+                        {project.liveUrl && (
+                          <span
+                            role="button"
+                            tabIndex={-1}
+                            aria-hidden="true"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              window.open(project.liveUrl, '_blank', 'noopener,noreferrer');
+                            }}
+                            className="hidden h-9 w-9 items-center justify-center rounded-xl border border-[var(--hairline)] bg-[var(--surface-2)] text-[var(--muted)] transition-colors hover:text-[var(--foreground)] sm:flex"
+                          >
+                            <ExternalLink className="h-4 w-4" strokeWidth={1.75} />
+                          </span>
+                        )}
+                        <ArrowUpRight className="h-4 w-4 text-[var(--faint)] transition-all duration-500 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-[var(--foreground)]" />
+                      </div>
+                    </Link>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </motion.div>
           )}
         </div>

@@ -13,7 +13,7 @@ export async function uploadProjectBanner(file: File, projectSlug: string): Prom
     const filePath = `banners/${fileName}`;
 
     // Upload file to Supabase Storage
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('project-banners')
       .upload(filePath, file, {
         cacheControl: '3600',
@@ -46,7 +46,7 @@ export async function uploadProjectScreenshot(file: File, projectSlug: string): 
     const filePath = `screenshots/${fileName}`;
 
     // Upload file
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('project-banners')
       .upload(filePath, file, {
         cacheControl: '3600',

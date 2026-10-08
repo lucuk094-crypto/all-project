@@ -1,217 +1,173 @@
 'use client';
 
-import React from 'react';
 import Link from 'next/link';
-import { ExternalLink, Github, ArrowRight, Code, Sparkles } from 'lucide-react';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
-import TechBadge from './TechBadge';
+import {
+  ArrowUpRight,
+  ExternalLink,
+  Github,
+  ImageOff,
+  Sparkles,
+  type LucideIcon,
+} from 'lucide-react';
 import type { Project } from '@/lib/supabaseProjectService';
+import TechBadge from './TechBadge';
 
 interface ProjectCardProps {
   project: Project;
   index?: number;
+  /** Editorial numbering, e.g. 3 → "03" */
+  showIndex?: boolean;
+  priority?: boolean;
 }
 
-export default function ProjectCard({ project, index = 0 }: ProjectCardProps) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 50 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      transition={{ 
-        duration: 0.5, 
-        delay: index * 0.1,
-        ease: [0.4, 0, 0.2, 1]
-      }}
-      whileHover={{ y: -8 }}
-      className="group relative bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl overflow-hidden border border-gray-200/50 dark:border-white/10 shadow-lg hover:shadow-2xl transition-all duration-300"
-    >
-      {/* Glassmorphism Background Effect */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/50 via-white/20 to-white/30 dark:from-white/5 dark:via-transparent dark:to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-      
-      {/* Animated Border Gradient */}
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-        <div className="absolute inset-0 bg-gradient-to-r from-black via-gray-600 to-black dark:from-white dark:via-gray-400 dark:to-white opacity-10 blur-xl"></div>
-      </div>
+const CATEGORY_ICON: Record<string, LucideIcon> = {
+  web: Sparkles,
+};
 
-      <div className="relative z-10">
-        {/* Banner Image with Parallax Effect */}
-        {project.banner && (
-          <div className="relative h-56 overflow-hidden bg-gradient-to-br from-gray-50 to-gray-100">
-            <motion.img
+export default function ProjectCard({
+  project,
+  index = 0,
+  showIndex = false,
+  priority = false,
+}: ProjectCardProps) {
+  const Icon = CATEGORY_ICON[project.category?.toLowerCase()] ?? Sparkles;
+
+  return (
+    <motion.article
+      initial={{ opacity: 0, y: 34 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.2 }}
+      transition={{ duration: 0.65, delay: (index % 3) * 0.08, ease: [0.16, 1, 0.3, 1] }}
+      className="group relative h-full"
+    >
+      <Link
+        href={`/projects/${project.slug}`}
+        className="spotlight-card ring-sheen relative flex h-full flex-col overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1.5 hover:border-[color-mix(in_oklab,var(--foreground)_22%,transparent)] hover:shadow-[0_24px_60px_-24px_rgba(0,0,0,0.55)]"
+        onMouseMove={(e) => {
+          const r = e.currentTarget.getBoundingClientRect();
+          e.currentTarget.style.setProperty('--mx', `${e.clientX - r.left}px`);
+          e.currentTarget.style.setProperty('--my', `${e.clientY - r.top}px`);
+        }}
+      >
+        {/* ── Banner ─────────────────────────────────────────── */}
+        <div className="relative aspect-[16/10] w-full overflow-hidden bg-[var(--surface-2)]">
+          {project.banner ? (
+            <Image
               src={project.banner}
               alt={project.title}
-              className="w-full h-full object-cover"
-              whileHover={{ scale: 1.1 }}
-              transition={{ duration: 0.6, ease: "easeOut" }}
+              fill
+              priority={priority}
+              loading={priority ? undefined : 'lazy'}
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="object-cover opacity-90 saturate-[0.35] contrast-[1.05] transition-all duration-[900ms] ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:scale-[1.06] group-hover:opacity-100 group-hover:saturate-100"
             />
-            
-            {/* Gradient Overlay with Animation */}
-            <motion.div 
-              className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent"
-              initial={{ opacity: 0 }}
-              whileHover={{ opacity: 1 }}
-              transition={{ duration: 0.2 }}
-            ></motion.div>
-            
-            {/* Featured Badge with Glow */}
-            {project.featured && (
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="absolute top-4 right-4 px-3 py-1.5 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold rounded-full backdrop-blur-sm shadow-lg flex items-center gap-1.5"
-              >
-                <Sparkles className="w-3 h-3" />
-                Unggulan
-              </motion.div>
-            )}
-
-            {/* Floating Code Icon */}
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              whileHover={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute top-4 left-4"
-            >
-              <div className="w-10 h-10 bg-white/95 backdrop-blur-md rounded-xl flex items-center justify-center shadow-lg border border-white/50">
-                <Code className="w-5 h-5 text-black" />
-              </div>
-            </motion.div>
-          </div>
-        )}
-
-        {/* Content with Glass Effect */}
-        <div className="p-6 relative">
-          {/* Subtle Glow Effect */}
-          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-gray-50/50 dark:to-white/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-          
-          <div className="relative z-10">
-            {/* Category Badge */}
-            <motion.div 
-              className="mb-3"
-              whileHover={{ scale: 1.05 }}
-              transition={{ type: "spring", stiffness: 400 }}
-            >
-              <span className="inline-block px-3 py-1.5 bg-gradient-to-r from-black to-gray-800 text-white text-xs font-bold rounded-full shadow-md">
-                {project.category}
-              </span>
-            </motion.div>
-
-            {/* Title with Gradient on Hover */}
-            <motion.h3 
-              className="text-2xl font-bold text-black mb-2 bg-gradient-to-r from-black via-gray-800 to-black bg-clip-text group-hover:text-transparent transition-all duration-300"
-              whileHover={{ x: 5 }}
-              transition={{ type: "spring", stiffness: 300 }}
-            >
-              {project.title}
-            </motion.h3>
-
-            {/* Tagline */}
-            <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
-              {project.tagline}
-            </p>
-
-            {/* Technologies with Stagger Animation */}
-            <motion.div 
-              className="flex flex-wrap gap-2 mb-6"
-              initial="hidden"
-              whileInView="visible"
-              viewport={{ once: true }}
-              variants={{
-                hidden: {},
-                visible: {
-                  transition: {
-                    staggerChildren: 0.05
-                  }
-                }
-              }}
-            >
-              {project.technologies.slice(0, 3).map((tech, techIndex) => (
-                <motion.div
-                  key={techIndex}
-                  variants={{
-                    hidden: { opacity: 0, scale: 0.8 },
-                    visible: { opacity: 1, scale: 1 }
-                  }}
-                >
-                  <TechBadge tech={tech} />
-                </motion.div>
-              ))}
-              {project.technologies.length > 3 && (
-                <motion.span
-                  variants={{
-                    hidden: { opacity: 0, scale: 0.8 },
-                    visible: { opacity: 1, scale: 1 }
-                  }}
-                  className="px-2 py-1 bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-gray-400 text-xs font-medium rounded-md"
-                >
-                  +{project.technologies.length - 3}
-                </motion.span>
-              )}
-            </motion.div>
-
-            {/* Actions with Hover Effects */}
-            <div className="flex items-center gap-3">
-              <Link 
-                href={`/projects/${project.slug}`}
-                className="flex-1"
-              >
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="flex items-center justify-center gap-2 px-4 py-3 bg-gradient-to-r from-black to-gray-800 dark:from-white dark:to-gray-200 text-white dark:text-black rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 group/btn"
-                >
-                  Lihat Detail
-                  <ArrowRight className="w-4 h-4 group-hover/btn:translate-x-1 transition-transform" />
-                </motion.div>
-              </Link>
-              
-              {project.liveUrl && (
-                <motion.a
-                  href={project.liveUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  whileHover={{ scale: 1.1, rotate: 5 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-3 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-full hover:border-black dark:hover:border-white/30 hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-all duration-300 shadow-md hover:shadow-lg"
-                  title="Live Demo"
-                >
-                  <ExternalLink className="w-5 h-5" />
-                </motion.a>
-              )}
-              
-              {project.githubUrl && (
-                <motion.a
-                  href={project.githubUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  whileHover={{ scale: 1.1, rotate: -5 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="p-3 bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10 rounded-full hover:border-black dark:hover:border-white/30 hover:bg-black dark:hover:bg-white hover:text-white dark:hover:text-black transition-all duration-300 shadow-md hover:shadow-lg"
-                  title="Source Code"
-                >
-                  <Github className="w-5 h-5" />
-                </motion.a>
-              )}
+          ) : (
+            <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-[var(--faint)]">
+              <ImageOff className="h-6 w-6" strokeWidth={1.5} />
+              <span className="font-mono text-[0.6875rem] tracking-wider">NO PREVIEW</span>
             </div>
+          )}
+
+          {/* Bottom scrim keeps text legible over any image */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[var(--surface)] via-transparent to-transparent opacity-90" />
+
+          {/* Index number */}
+          {showIndex && (
+            <span className="pointer-events-none absolute left-4 top-4 font-mono text-[0.6875rem] tracking-[0.2em] text-white/70 mix-blend-difference">
+              {String(index + 1).padStart(2, '0')}
+            </span>
+          )}
+
+          {/* Featured pill */}
+          {project.featured && (
+            <span className="absolute right-4 top-4 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-black/40 px-2.5 py-1 text-[0.625rem] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-md">
+              <Sparkles className="h-3 w-3" strokeWidth={2} />
+              Unggulan
+            </span>
+          )}
+
+          {/* Hover quick-links */}
+          <div className="absolute bottom-3 right-3 flex translate-y-2 items-center gap-2 opacity-0 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-y-0 group-hover:opacity-100">
+            {project.liveUrl && (
+              <span
+                role="button"
+                tabIndex={-1}
+                aria-hidden="true"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(project.liveUrl, '_blank', 'noopener,noreferrer');
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-black/50 text-white backdrop-blur-md transition-colors hover:bg-white hover:text-black"
+              >
+                <ExternalLink className="h-4 w-4" strokeWidth={1.8} />
+              </span>
+            )}
+            {project.githubUrl && (
+              <span
+                role="button"
+                tabIndex={-1}
+                aria-hidden="true"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  window.open(project.githubUrl, '_blank', 'noopener,noreferrer');
+                }}
+                className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/15 bg-black/50 text-white backdrop-blur-md transition-colors hover:bg-white hover:text-black"
+              >
+                <Github className="h-4 w-4" strokeWidth={1.8} />
+              </span>
+            )}
           </div>
         </div>
-      </div>
 
-      {/* Animated Corner Accent */}
-      <motion.div
-        className="absolute -bottom-2 -right-2 w-24 h-24 bg-gradient-to-br from-black/5 to-transparent dark:from-white/5 dark:to-transparent rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        animate={{
-          scale: [1, 1.2, 1],
-          rotate: [0, 90, 0]
-        }}
-        transition={{
-          duration: 8,
-          repeat: Infinity,
-          ease: "linear"
-        }}
-      ></motion.div>
-    </motion.div>
+        {/* ── Body ──────────────────────────────────────────── */}
+        <div className="relative z-[2] flex flex-1 flex-col p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[var(--hairline)] bg-[var(--surface-2)]">
+              <Icon className="h-3.5 w-3.5 text-[var(--muted)]" strokeWidth={1.75} />
+            </span>
+            <span className="font-mono text-[0.625rem] uppercase tracking-[0.18em] text-[var(--faint)]">
+              {project.category}
+            </span>
+          </div>
+
+          <h3 className="text-[1.0625rem] font-semibold leading-snug tracking-tight transition-colors group-hover:text-[var(--foreground)]">
+            {project.title}
+          </h3>
+
+          <p className="mt-2 line-clamp-2 text-sm leading-relaxed text-[var(--muted)]">
+            {project.tagline}
+          </p>
+
+          {/* Tech stack */}
+          {project.technologies?.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-1.5">
+              {project.technologies.slice(0, 4).map((tech) => (
+                <TechBadge key={tech} name={tech} />
+              ))}
+              {project.technologies.length > 4 && (
+                <TechBadge name={`+${project.technologies.length - 4}`} muted />
+              )}
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="mt-auto flex items-center justify-between pt-5">
+            <span className="inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-[var(--muted)] transition-colors group-hover:text-[var(--foreground)]">
+              Lihat detail
+              <ArrowUpRight className="h-3.5 w-3.5 transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-1 group-hover:-translate-y-1" />
+            </span>
+            {project.duration && (
+              <span className="font-mono text-[0.625rem] tracking-wider text-[var(--faint)]">
+                {project.duration}
+              </span>
+            )}
+          </div>
+        </div>
+      </Link>
+    </motion.article>
   );
 }

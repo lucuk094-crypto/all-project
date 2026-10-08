@@ -78,7 +78,6 @@ export async function createProject(projectData: Omit<Project, 'id' | 'createdAt
     if (error) {
       // Log the actual Supabase error for debugging
       if (process.env.NODE_ENV === 'development') {
-        // eslint-disable-next-line no-console
         console.error('Supabase error details:', {
           message: error.message,
           details: error.details,
@@ -91,7 +90,8 @@ export async function createProject(projectData: Omit<Project, 'id' | 'createdAt
       const enhancedError = new Error(
         `Failed to create project: ${error.message || 'Unknown error'}${error.hint ? ` (Hint: ${error.hint})` : ''}`
       );
-      (enhancedError as any).supabaseError = error; // Attach original error for debugging
+      // Attach the original error for debugging without resorting to `any`
+      Object.defineProperty(enhancedError, 'supabaseError', { value: error, enumerable: false });
       throw enhancedError;
     }
 
@@ -334,7 +334,7 @@ export async function updateProject(id: string, projectData: Partial<Project>): 
 
   try {
     // Convert camelCase to snake_case for database
-    const dbData: any = {};
+    const dbData: Record<string, unknown> = {};
     
     if (projectData.slug !== undefined) dbData.slug = projectData.slug;
     if (projectData.title !== undefined) dbData.title = projectData.title;

@@ -1,160 +1,123 @@
 'use client';
 
-import { useCallback, useState } from 'react';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
-import { Button } from './ui/button';
+import { useCallback, useId, useRef, useState } from 'react';
+import { ImagePlus, Trash2, UploadCloud } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface ImageDropzoneProps {
   onFileSelect: (file: File) => void;
   preview?: string;
   onRemove?: () => void;
   label?: string;
+  hint?: string;
   accept?: string;
 }
 
-export default function ImageDropzone({ 
-  onFileSelect, 
-  preview, 
+export default function ImageDropzone({
+  onFileSelect,
+  preview,
   onRemove,
-  label = 'Banner Project',
-  accept = 'image/*'
+  label = 'Banner project',
+  hint = 'Seret gambar ke sini atau klik untuk memilih. Rasio 16:9 direkomendasikan.',
+  accept = 'image/*',
 }: ImageDropzoneProps) {
-  const [isDragging, setIsDragging] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [error, setError] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const id = useId();
 
-  const handleDrag = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  }, []);
-
-  const handleDragIn = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.dataTransfer.items && e.dataTransfer.items.length > 0) {
-      setIsDragging(true);
-    }
-  }, []);
-
-  const handleDragOut = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-  }, []);
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setIsDragging(false);
-
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      const file = files[0];
-      if (file.type.startsWith('image/')) {
-        onFileSelect(file);
-      } else {
-        alert('Hanya file gambar yang diperbolehkan');
+  const acceptFile = useCallback(
+    (file: File | undefined) => {
+      if (!file) return;
+      if (!file.type.startsWith('image/')) {
+        setError('File harus berupa gambar.');
+        return;
       }
-    }
-  }, [onFileSelect]);
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      onFileSelect(files[0]);
-    }
-  };
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Ukuran gambar maksimal 5 MB.');
+        return;
+      }
+      setError('');
+      onFileSelect(file);
+    },
+    [onFileSelect],
+  );
 
   return (
-    <div className="w-full">
-      <label className="text-sm font-semibold text-gray-700 dark:text-white mb-3 block">
-        {label}
-      </label>
-      
-      {preview ? (
-        <div className="relative group">
-          <div className="relative rounded-xl overflow-hidden border-2 border-gray-200 dark:border-white/10">
-            <img 
-              src={preview} 
-              alt="Preview" 
-              className="w-full h-64 object-cover"
-            />
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <div className="flex gap-2">
-                <label className="cursor-pointer">
-                  <div className="px-4 py-2 bg-white dark:bg-black text-black dark:text-white rounded-lg font-semibold hover:bg-gray-100 dark:hover:bg-gray-900 transition-colors flex items-center gap-2">
-                    <Upload className="w-4 h-4" />
-                    Ganti
-                  </div>
-                  <input
-                    type="file"
-                    accept={accept}
-                    onChange={handleFileInput}
-                    className="hidden"
-                  />
-                </label>
-                {onRemove && (
-                  <Button
-                    type="button"
-                    onClick={onRemove}
-                    className="px-4 py-2 bg-red-600 text-white hover:bg-red-700"
-                  >
-                    <X className="w-4 h-4 mr-2" />
-                    Hapus
-                  </Button>
-                )}
-              </div>
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between">
+        <label htmlFor={id} className="text-[0.8125rem] font-medium">
+          {label}
+        </label>
+        {preview && onRemove && (
+          <Button type="button" variant="ghost" size="sm" onClick={onRemove} className="text-red-500 hover:bg-red-500/10 hover:text-red-500">
+            <Trash2 className="h-3.5 w-3.5" />
+            Hapus
+          </Button>
+        )}
+      </div>
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
+        onDragLeave={() => setDragging(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragging(false);
+          acceptFile(e.dataTransfer.files?.[0]);
+        }}
+        onClick={() => inputRef.current?.click()}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
+        className={`relative flex cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed transition-all duration-300 ${
+          dragging
+            ? 'border-[var(--foreground)] bg-[var(--accent-soft)]'
+            : 'border-[var(--input)] bg-[var(--surface-2)]/40 hover:border-[color-mix(in_oklab,var(--foreground)_30%,transparent)]'
+        } ${preview ? 'aspect-[16/9]' : 'h-52'}`}
+      >
+        {preview ? (
+          <>
+            {/* Remote preview — plain img keeps arbitrary hosts working */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={preview} alt="Pratinjau banner" className="h-full w-full object-cover" />
+            <div className="absolute inset-0 flex items-center justify-center bg-black/60 opacity-0 transition-opacity duration-300 hover:opacity-100">
+              <span className="inline-flex items-center gap-2 rounded-xl bg-white px-3.5 py-2 text-sm font-medium text-black">
+                <ImagePlus className="h-4 w-4" />
+                Ganti gambar
+              </span>
             </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-3 px-6 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--hairline)] bg-[var(--surface)]">
+              <UploadCloud className="h-5 w-5 text-[var(--muted)]" strokeWidth={1.75} />
+            </span>
+            <p className="text-sm text-[var(--muted)]">{hint}</p>
           </div>
-          <p className="text-xs text-gray-500 dark:text-white/70 mt-2 text-center">
-            Hover untuk mengganti atau menghapus gambar
-          </p>
-        </div>
-      ) : (
-        <div
-          onDragEnter={handleDragIn}
-          onDragLeave={handleDragOut}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer ${
-            isDragging
-              ? 'border-black dark:border-white bg-gray-50 dark:bg-white/10 scale-[1.02]'
-              : 'border-gray-300 dark:border-white/20 hover:border-black dark:hover:border-white hover:bg-gray-50 dark:hover:bg-white/10'
-          }`}
-        >
-          <input
-            type="file"
-            accept={accept}
-            onChange={handleFileInput}
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-          />
-          
-          <div className="pointer-events-none">
-            {isDragging ? (
-              <>
-                <div className="w-16 h-16 bg-black dark:bg-white rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Upload className="w-8 h-8 text-white dark:text-black" />
-                </div>
-                <p className="text-lg font-bold text-black dark:text-white mb-2">Lepas file di sini</p>
-                <p className="text-sm text-gray-600 dark:text-white/70">File akan diupload secara otomatis</p>
-              </>
-            ) : (
-              <>
-                <div className="w-16 h-16 bg-gray-100 dark:bg-white/10 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <ImageIcon className="w-8 h-8 text-gray-400 dark:text-white/50" />
-                </div>
-                <p className="text-lg font-bold text-black dark:text-white mb-2">
-                  Drag & Drop atau Klik untuk Upload
-                </p>
-                <p className="text-sm text-gray-600 dark:text-white/70 mb-4">
-                  PNG, JPG, WEBP sampai 10MB
-                </p>
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-lg font-semibold">
-                  <Upload className="w-4 h-4" />
-                  Pilih File
-                </div>
-              </>
-            )}
-          </div>
-        </div>
+        )}
+
+        <input
+          ref={inputRef}
+          id={id}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => acceptFile(e.target.files?.[0])}
+        />
+      </div>
+
+      {error && (
+        <p className="text-[0.8125rem] text-red-500" role="alert">
+          {error}
+        </p>
       )}
     </div>
   );

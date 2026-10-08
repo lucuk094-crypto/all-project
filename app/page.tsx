@@ -1,793 +1,412 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { FolderOpen, Code, Terminal, ArrowRight, CheckCircle, Github, Menu, X, Sparkles, Play } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Boxes,
+  Braces,
+  Code2,
+  Cpu,
+  Database,
+  Github,
+  Layers,
+  Palette,
+  Rocket,
+  ServerCog,
+  Sparkles,
+  Terminal,
+  Zap,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import ProjectCard from '@/components/ProjectCard';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import SectionHeading from '@/components/SectionHeading';
+import CodeShowcase from '@/components/CodeShowcase';
+import Reveal, { RevealGroup, RevealItem } from '@/components/Reveal';
 import { GridBackground } from '@/components/GridBackground';
-import { TechStackSection } from '@/components/TechStackSection';
-import { TiltCard } from '@/components/TiltCard';
-import { Project, getFeaturedProjects } from '@/lib/supabaseProjectService';
+import { Skeleton } from '@/components/ui/badge';
+import type { Project } from '@/lib/supabaseProjectService';
+import { getFeaturedProjects, getPublishedProjects } from '@/lib/supabaseProjectService';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { DEMO_PROJECTS } from '@/lib/demoProjects';
+import DemoNotice from '@/components/DemoNotice';
 
-import { logError } from '@/lib/errorLogger';
+/* ───────────────────────── data ───────────────────────── */
+
+const STATS = [
+  { value: '12+', label: 'Project selesai' },
+  { value: '4', label: 'Tahun berkarya' },
+  { value: '99%', label: 'Skor performa' },
+  { value: '24/7', label: 'Siap kolaborasi' },
+];
+
+const MARQUEE = [
+  'Next.js', 'TypeScript', 'React', 'Tailwind CSS', 'Supabase',
+  'PostgreSQL', 'Framer Motion', 'Node.js', 'Figma', 'Git',
+  'Vercel', 'Docker', 'Prisma', 'GraphQL',
+];
+
+const CAPABILITIES = [
+  {
+    icon: Code2,
+    title: 'Web Application',
+    description:
+      'Aplikasi web modern berbasis React dan Next.js dengan arsitektur yang rapi, cepat, dan mudah dikembangkan.',
+    tag: 'Frontend',
+  },
+  {
+    icon: ServerCog,
+    title: 'API & Backend',
+    description:
+      'Desain REST maupun GraphQL, autentikasi, dan integrasi basis data yang aman serta terdokumentasi.',
+    tag: 'Backend',
+  },
+  {
+    icon: Database,
+    title: 'Database Design',
+    description:
+      'Skema relasional yang terstruktur, terindeks dengan benar, dan dilindungi kebijakan keamanan berlapis.',
+    tag: 'Data',
+  },
+  {
+    icon: Palette,
+    title: 'UI/UX Design',
+    description:
+      'Antarmuka yang bersih, konsisten, dan menyenangkan digunakan pada berbagai ukuran layar.',
+    tag: 'Design',
+  },
+];
+
+const PROCESS = [
+  {
+    icon: Layers,
+    step: '01',
+    title: 'Riset & Perencanaan',
+    description: 'Memahami tujuan, pengguna, dan batasan teknis sebelum satu baris kode ditulis.',
+  },
+  {
+    icon: Boxes,
+    step: '02',
+    title: 'Desain & Arsitektur',
+    description: 'Menyusun struktur komponen, aliran data, dan sistem desain yang dapat digunakan ulang.',
+  },
+  {
+    icon: Braces,
+    step: '03',
+    title: 'Pengembangan',
+    description: 'Implementasi bertahap dengan pengecekan tipe, pengujian, dan tinjauan kode rutin.',
+  },
+  {
+    icon: Rocket,
+    step: '04',
+    title: 'Peluncuran & Perawatan',
+    description: 'Optimasi performa, pemantauan, dan perbaikan berkelanjutan setelah rilis.',
+  },
+];
+
+/* ───────────────────────── page ───────────────────────── */
 
 export default function HomePage() {
-  const [scrollY, setScrollY] = useState(0);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const handleScroll = () => setScrollY(window.scrollY);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  useEffect(() => {
-    async function loadFeaturedProjects() {
+    let alive = true;
+    (async () => {
       try {
-        const projects = await getFeaturedProjects();
-        setFeaturedProjects(projects.slice(0, 3));
-      } catch (error) {
-        logError('HomePage - loadFeaturedProjects', error);
+        if (!isSupabaseConfigured) {
+          if (alive) setProjects(DEMO_PROJECTS.slice(0, 6));
+          return;
+        }
+        const featured = await getFeaturedProjects();
+        const list = featured.length > 0 ? featured : await getPublishedProjects();
+        if (alive) setProjects(list.slice(0, 6));
+      } catch {
+        if (alive) setProjects([]);
       } finally {
-        setLoading(false);
+        if (alive) setLoading(false);
       }
-    }
-
-    loadFeaturedProjects();
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
-
-  const stats = [
-    { number: '10+', label: 'Project Selesai', icon: Code },
-    { number: '5+', label: 'Teknologi', icon: Terminal },
-    { number: '1000+', label: 'Baris Kode', icon: Play },
-    { number: '100%', label: 'Open Source', icon: Sparkles }
-  ];
-
-  const technologies = ['React', 'Next.js', 'TypeScript', 'Tailwind CSS', 'Node.js', 'Firebase', 'PostgreSQL', 'Git'];
 
   return (
-    <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white">
-      {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-50 transition-all duration-300 ${
-        scrollY > 50 
-          ? 'bg-white/80 dark:bg-black/80 backdrop-blur-xl shadow-sm border-b border-gray-200/50 dark:border-white/10' 
-          : 'bg-white/60 dark:bg-black/60 backdrop-blur-md border-b border-gray-100/50 dark:border-white/5'
-      }`}>
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex justify-between items-center">
-            <Link href="/" className="flex items-center gap-3 group">
-              <motion.div 
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                className="w-10 h-10 bg-black dark:bg-white rounded-lg flex items-center justify-center transition-colors"
+    <div className="relative">
+      <DemoNotice />
+
+      {/* ══════════════ HERO ══════════════ */}
+      <section className="relative overflow-hidden px-4 pb-20 pt-10 sm:px-6 sm:pb-28 sm:pt-16">
+        <GridBackground />
+
+        <div className="relative mx-auto w-full max-w-6xl">
+          <div className="grid items-center gap-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10">
+            {/* Left — copy */}
+            <div>
+              <motion.div
+                initial={{ opacity: 0, y: 18 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+                className="mb-7 inline-flex items-center gap-2 rounded-full border border-[var(--hairline)] bg-[var(--surface)]/70 px-3 py-1.5 backdrop-blur-md"
               >
-                <Terminal className="w-6 h-6 text-white dark:text-black" />
-              </motion.div>
-              <div className="flex items-center gap-2">
-                <span className="text-2xl font-bold text-black dark:text-white">Portfolio</span>
-                <span className="px-2.5 py-1 bg-gradient-to-r from-black to-gray-700 dark:from-white dark:to-gray-300 text-white dark:text-black text-xs font-bold rounded-md shadow-sm">
-                  SHOWCASE
+                <span className="relative flex h-1.5 w-1.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-emerald-400" />
                 </span>
-              </div>
-            </Link>
-            
-            <div className="hidden md:flex items-center gap-6">
-              <Link href="/projects" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors font-medium">
-                Projects
-              </Link>
-              <Link href="/about" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors font-medium">
-                About
-              </Link>
-              <div className="flex items-center gap-3">
-                <ThemeToggle />
-                <Link href="/admin">
-                  <motion.div
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="px-6 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-lg hover:bg-gray-800 dark:hover:bg-gray-200 transition-all font-semibold shadow-lg hover:shadow-xl cursor-pointer"
-                  >
-                    Admin Panel
-                  </motion.div>
-                </Link>
-              </div>
+                <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-[var(--muted)]">
+                  Tersedia untuk kolaborasi
+                </span>
+              </motion.div>
+
+              <motion.h1
+                initial={{ opacity: 0, y: 26 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.85, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
+                className="text-display text-[2.6rem] leading-[1.02] sm:text-6xl lg:text-[4.25rem]"
+              >
+                <span className="text-gradient">Membangun produk</span>
+                <br />
+                <span className="text-gradient-muted">digital yang presisi.</span>
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0, y: 22 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.85, delay: 0.16, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-6 max-w-lg text-[0.9375rem] leading-relaxed text-[var(--muted)] sm:text-base"
+              >
+                Saya merancang dan mengembangkan aplikasi web yang cepat, mudah diakses, dan enak
+                dipandang — dari ide pertama hingga siap digunakan banyak orang.
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 22 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.85, delay: 0.24, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-9 flex flex-wrap items-center gap-3"
+              >
+                <Button asChild size="lg" className="group">
+                  <Link href="/projects">
+                    Lihat karya
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link href="/about">Tentang saya</Link>
+                </Button>
+              </motion.div>
+
+              {/* Stats */}
+              <motion.dl
+                initial={{ opacity: 0, y: 22 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.85, delay: 0.32, ease: [0.16, 1, 0.3, 1] }}
+                className="mt-12 grid grid-cols-2 gap-x-6 gap-y-7 border-t border-[var(--hairline)] pt-8 sm:grid-cols-4"
+              >
+                {STATS.map((s) => (
+                  <div key={s.label}>
+                    <dt className="text-display text-2xl sm:text-[1.75rem]">{s.value}</dt>
+                    <dd className="mt-1 text-[0.6875rem] leading-snug text-[var(--faint)]">
+                      {s.label}
+                    </dd>
+                  </div>
+                ))}
+              </motion.dl>
             </div>
 
-            <div className="md:hidden flex items-center gap-3">
-              <ThemeToggle />
-              <motion.button 
-                whileTap={{ scale: 0.95 }}
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="text-black dark:text-white p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              >
-                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </motion.button>
+            {/* Right — code showcase */}
+            <div className="lg:pl-4">
+              <CodeShowcase />
             </div>
           </div>
-
-          {mobileMenuOpen && (
-            <motion.div 
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="md:hidden mt-4 pt-4 border-t border-gray-200 dark:border-gray-800 space-y-3 pb-4"
-            >
-              <Link href="/projects" onClick={() => setMobileMenuOpen(false)} className="block text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors py-2">
-                Projects
-              </Link>
-              <Link href="/about" onClick={() => setMobileMenuOpen(false)} className="block text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors py-2">
-                About
-              </Link>
-              <Link href="/admin" className="block px-6 py-2.5 bg-black dark:bg-white text-white dark:text-black rounded-lg text-center font-semibold">
-                Admin Panel
-              </Link>
-            </motion.div>
-          )}
         </div>
-      </nav>
+      </section>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6 bg-white dark:bg-black relative overflow-hidden transition-colors">
-        {/* Grid Background */}
-        <GridBackground variant="dots" />
-        
-        {/* Animated Background Elements */}
-        <motion.div
-          className="absolute top-20 right-10 w-72 h-72 bg-gradient-to-br from-gray-100 dark:from-white/5 to-transparent rounded-full blur-3xl opacity-50 z-0"
-          animate={{
-            scale: [1, 1.2, 1],
-            rotate: [0, 90, 0],
-          }}
-          transition={{
-            duration: 20,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-        />
-        <motion.div
-          className="absolute bottom-20 left-10 w-96 h-96 bg-gradient-to-tr from-gray-100 dark:from-white/5 to-transparent rounded-full blur-3xl opacity-50 z-0"
-          animate={{
-            scale: [1, 1.3, 1],
-            rotate: [0, -90, 0],
-          }}
-          transition={{
-            duration: 25,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-        />
-
-        <div className="max-w-7xl mx-auto relative z-10">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left Side - Text Content */}
-            <motion.div 
-              className="space-y-8"
-              initial={{ opacity: 0, x: -50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8 }}
-            >
-              <motion.div 
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white dark:bg-white/5 border-2 border-gray-200 dark:border-white/10 rounded-full backdrop-blur-xl"
-                whileHover={{ scale: 1.05, borderColor: "#000" }}
-                transition={{ type: "spring", stiffness: 400 }}
+      {/* ══════════════ MARQUEE ══════════════ */}
+      <section className="relative border-y border-[var(--hairline)] bg-[var(--surface)]/40 py-5">
+        <div className="marquee-track mask-fade-x overflow-hidden">
+          <div className="animate-marquee flex w-max items-center gap-10 pr-10">
+            {[...MARQUEE, ...MARQUEE].map((item, i) => (
+              <span
+                key={`${item}-${i}`}
+                className="flex shrink-0 items-center gap-2.5 font-mono text-xs uppercase tracking-[0.18em] text-[var(--faint)] transition-colors hover:text-[var(--muted)]"
               >
-                <Sparkles className="w-4 h-4 text-black dark:text-white" />
-                <span className="text-sm font-semibold text-black dark:text-white">Portfolio Web Developer</span>
-              </motion.div>
+                <Zap className="h-3 w-3" strokeWidth={1.75} />
+                {item}
+              </span>
+            ))}
+          </div>
+        </div>
+      </section>
 
-              <div className="space-y-6">
-                <motion.h1 
-                  className="text-5xl md:text-6xl lg:text-7xl font-bold leading-tight text-black dark:text-white"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.8 }}
-                >
-                  Koleksi Project
-                  <motion.span 
-                    className="block mt-2"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.4, duration: 0.8 }}
-                  >
-                    Van-X313.Dev
-                  </motion.span>
-                </motion.h1>
-                <motion.p 
-                  className="text-lg text-gray-600 dark:text-gray-400 leading-relaxed max-w-xl"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.6, duration: 0.8 }}
-                >
-                  Jelajahi koleksi project web development dengan teknologi modern, 
-                  kode bersih, dan desain responsif. Dari website sederhana hingga 
-                  aplikasi web yang kompleks.
-                </motion.p>
-              </div>
-
-              <motion.div 
-                className="flex flex-col sm:flex-row gap-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 0.6 }}
-              >
-                <Link href="/projects" className="group">
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold text-lg hover:shadow-lg transition-all flex items-center gap-2 justify-center"
-                  >
-                    Lihat Semua Project
-                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
-                  </motion.div>
+      {/* ══════════════ FEATURED PROJECTS ══════════════ */}
+      <section className="relative px-4 py-20 sm:px-6 sm:py-28">
+        <div className="mx-auto w-full max-w-6xl">
+          <SectionHeading
+            eyebrow="Karya pilihan"
+            icon={Sparkles}
+            title="Project yang menonjol"
+            description="Beberapa karya terbaik yang mencerminkan standar kualitas, performa, dan perhatian pada detail."
+            action={
+              <Button asChild variant="outline" className="group">
+                <Link href="/projects">
+                  Semua project
+                  <ArrowUpRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
                 </Link>
-                <motion.a 
-                  href="#featured"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-8 py-4 bg-white dark:bg-white/5 border-2 border-black dark:border-white/20 text-black dark:text-white rounded-full font-bold text-lg hover:bg-gray-50 dark:hover:bg-white/10 backdrop-blur-xl transition-all text-center"
-                >
-                  Project Unggulan
-                </motion.a>
-              </motion.div>
+              </Button>
+            }
+            align="left"
+          />
 
-              <motion.div 
-                className="flex flex-wrap items-center gap-6 pt-4"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 1, duration: 0.6 }}
-              >
-                {[
-                  { icon: CheckCircle, text: 'Teknologi Modern' },
-                  { icon: CheckCircle, text: 'Desain Responsif' },
-                  { icon: CheckCircle, text: 'Kode Bersih' }
-                ].map((item, idx) => (
-                  <motion.div 
-                    key={idx}
-                    className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400"
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 1 + idx * 0.1 }}
+          <div className="mt-12">
+            {loading ? (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {[0, 1, 2, 3, 4, 5].map((i) => (
+                  <div
+                    key={i}
+                    className="overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--surface)]"
                   >
-                    <item.icon className="w-5 h-5 text-green-500" />
-                    <span className="font-medium">{item.text}</span>
-                  </motion.div>
-                ))}
-              </motion.div>
-            </motion.div>
-
-            {/* Right Side - Modern Glassmorphism Python Code Card */}
-            <motion.div 
-              className="relative"
-              initial={{ opacity: 0, x: 50 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.8, delay: 0.3 }}
-            >
-              <motion.div 
-                className="bg-white/90 dark:bg-white/5 backdrop-blur-2xl rounded-2xl shadow-xl dark:shadow-2xl border border-gray-200/50 dark:border-white/10 overflow-hidden"
-                whileHover={{ scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 300 }}
-              >
-                {/* Modern Window Header */}
-                <div className="bg-gray-100/80 dark:bg-black/50 backdrop-blur-xl px-6 py-4 flex items-center justify-between border-b border-gray-200 dark:border-white/10">
-                  <div className="flex items-center gap-3">
-                    <div className="flex gap-2">
-                      <motion.div whileHover={{ scale: 1.2 }} className="w-3 h-3 rounded-full bg-red-500/80"></motion.div>
-                      <motion.div whileHover={{ scale: 1.2 }} className="w-3 h-3 rounded-full bg-yellow-500/80"></motion.div>
-                      <motion.div whileHover={{ scale: 1.2 }} className="w-3 h-3 rounded-full bg-green-500/80"></motion.div>
+                    <Skeleton className="aspect-[16/10] w-full rounded-none" />
+                    <div className="space-y-3 p-5">
+                      <Skeleton className="h-4 w-2/3" />
+                      <Skeleton className="h-3 w-full" />
+                      <Skeleton className="h-3 w-1/2" />
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-gray-600 dark:text-white/70 font-medium">
-                    <Code className="w-4 h-4" />
-                    <span>developer.py</span>
-                  </div>
-                </div>
-
-                {/* Python Code Content with Glassmorphism */}
-                <div className="p-8 font-mono text-sm h-96 overflow-hidden relative bg-gradient-to-br from-gray-50/50 via-white/30 to-gray-100/50 dark:from-black/20 dark:via-black/30 dark:to-black/40">
-                  <div className="animate-scroll-slow">
-                    <pre className="text-gray-800 dark:text-white/90 leading-relaxed">
-                      <span className="text-gray-500 dark:text-gray-400"># Developer Profile</span>
-                      {'\n'}
-                      <span className="text-purple-600 dark:text-purple-400">class</span> <span className="text-yellow-600 dark:text-yellow-300">Developer</span>:{'\n'}
-                      {'    '}<span className="text-purple-600 dark:text-purple-400">def</span> <span className="text-blue-600 dark:text-blue-300">__init__</span>(<span className="text-orange-600 dark:text-orange-300">self</span>):{'\n'}
-                      {'        '}<span className="text-orange-600 dark:text-orange-300">self</span>.name = <span className="text-green-600 dark:text-green-300">"Van-X313"</span>{'\n'}
-                      {'        '}<span className="text-orange-600 dark:text-orange-300">self</span>.role = <span className="text-green-600 dark:text-green-300">"Full Stack Developer"</span>{'\n'}
-                      {'        '}<span className="text-orange-600 dark:text-orange-300">self</span>.location = <span className="text-green-600 dark:text-green-300">"Indonesia"</span>{'\n\n'}
-                      
-                      {'        '}<span className="text-gray-500 dark:text-gray-400"># Tech Stack</span>{'\n'}
-                      {'        '}<span className="text-orange-600 dark:text-orange-300">self</span>.frontend = [{'\n'}
-                      {'            '}<span className="text-green-600 dark:text-green-300">"React"</span>, <span className="text-green-600 dark:text-green-300">"Next.js"</span>,{'\n'}
-                      {'            '}<span className="text-green-600 dark:text-green-300">"TypeScript"</span>, <span className="text-green-600 dark:text-green-300">"Tailwind"</span>{'\n'}
-                      {'        '}{']'}{'\n\n'}
-                      
-                      {'        '}<span className="text-orange-600 dark:text-orange-300">self</span>.backend = [{'\n'}
-                      {'            '}<span className="text-green-600 dark:text-green-300">"Node.js"</span>, <span className="text-green-600 dark:text-green-300">"Python"</span>,{'\n'}
-                      {'            '}<span className="text-green-600 dark:text-green-300">"PostgreSQL"</span>, <span className="text-green-600 dark:text-green-300">"Firebase"</span>{'\n'}
-                      {'        '}{']'}{'\n\n'}
-                      
-                      {'        '}<span className="text-orange-600 dark:text-orange-300">self</span>.tools = [{'\n'}
-                      {'            '}<span className="text-green-600 dark:text-green-300">"Git"</span>, <span className="text-green-600 dark:text-green-300">"VS Code"</span>,{'\n'}
-                      {'            '}<span className="text-green-600 dark:text-green-300">"Figma"</span>, <span className="text-green-600 dark:text-green-300">"Vercel"</span>{'\n'}
-                      {'        '}{']'}{'\n\n'}
-                      
-                      {'    '}<span className="text-purple-600 dark:text-purple-400">def</span> <span className="text-blue-600 dark:text-blue-300">get_skills</span>(<span className="text-orange-600 dark:text-orange-300">self</span>):{'\n'}
-                      {'        '}<span className="text-purple-600 dark:text-purple-400">return</span> {'\n'}
-                      {'            '}<span className="text-cyan-600 dark:text-cyan-300">'frontend'</span>: <span className="text-orange-600 dark:text-orange-300">self</span>.frontend,{'\n'}
-                      {'            '}<span className="text-cyan-600 dark:text-cyan-300">'backend'</span>: <span className="text-orange-600 dark:text-orange-300">self</span>.backend,{'\n'}
-                      {'            '}<span className="text-cyan-600 dark:text-cyan-300">'tools'</span>: <span className="text-orange-600 dark:text-orange-300">self</span>.tools{'\n'}
-                      {'        }'}
-                      {'\n\n'}
-                      {'    '}<span className="text-purple-600 dark:text-purple-400">def</span> <span className="text-blue-600 dark:text-blue-300">build_projects</span>(<span className="text-orange-600 dark:text-orange-300">self</span>):{'\n'}
-                      {'        '}<span className="text-gray-500 dark:text-gray-400"># Create modern web apps</span>{'\n'}
-                      {'        '}projects = <span className="text-blue-600 dark:text-blue-300">self</span>.<span className="text-yellow-600 dark:text-yellow-300">design</span>() + <span className="text-blue-600 dark:text-blue-300">self</span>.<span className="text-yellow-600 dark:text-yellow-300">code</span>(){'\n'}
-                      {'        '}<span className="text-purple-600 dark:text-purple-400">return</span> <span className="text-blue-600 dark:text-blue-300">self</span>.<span className="text-yellow-600 dark:text-yellow-300">deploy</span>(projects){'\n\n'}
-                      
-                      <span className="text-gray-500 dark:text-gray-400"># Initialize Developer</span>{'\n'}
-                      developer = <span className="text-yellow-600 dark:text-yellow-300">Developer</span>(){'\n'}
-                      <span className="text-blue-600 dark:text-blue-300">print</span>(<span className="text-green-600 dark:text-green-300">f"</span><span className="text-green-600 dark:text-green-300">{'{'}</span>developer.name<span className="text-green-600 dark:text-green-300">{'}'}</span> <span className="text-green-600 dark:text-green-300">- </span><span className="text-green-600 dark:text-green-300">{'{'}</span>developer.role<span className="text-green-600 dark:text-green-300">{'}'}</span><span className="text-green-600 dark:text-green-300">"</span>){'\n'}
-                      developer.<span className="text-yellow-600 dark:text-yellow-300">build_projects</span>(){'\n\n'}
-                      
-                      {/* Duplicate for seamless loop */}
-                      <span className="text-gray-500 dark:text-gray-400"># Developer Profile</span>
-                      {'\n'}
-                      <span className="text-purple-600 dark:text-purple-400">class</span> <span className="text-yellow-600 dark:text-yellow-300">Developer</span>:{'\n'}
-                      {'    '}<span className="text-purple-600 dark:text-purple-400">def</span> <span className="text-blue-600 dark:text-blue-300">__init__</span>(<span className="text-orange-600 dark:text-orange-300">self</span>):{'\n'}
-                      {'        '}<span className="text-orange-600 dark:text-orange-300">self</span>.name = <span className="text-green-600 dark:text-green-300">"Van-X313"</span>{'\n'}
-                      {'        '}<span className="text-orange-600 dark:text-orange-300">self</span>.role = <span className="text-green-600 dark:text-green-300">"Full Stack Developer"</span>{'\n'}
-                    </pre>
-                  </div>
-                  
-                  {/* Enhanced Gradient Overlays */}
-                  <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-black via-black/50 to-transparent pointer-events-none"></div>
-                  <div className="absolute top-0 left-0 right-0 h-20 bg-gradient-to-b from-black/40 to-transparent pointer-events-none"></div>
-                </div>
-
-                {/* Modern Footer Badge */}
-                <div className="bg-black/30 dark:bg-black/50 backdrop-blur-xl px-6 py-3 flex items-center justify-between border-t border-white/10">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                    <span className="text-xs text-white/70 font-medium">Python 3.11</span>
-                  </div>
-                  <span className="text-xs text-white/50">UTF-8</span>
-                </div>
-              </motion.div>
-
-              {/* Floating Accent Elements */}
-              <motion.div
-                className="absolute -top-4 -right-4 w-24 h-24 bg-purple-500/20 rounded-full blur-3xl"
-                animate={{
-                  scale: [1, 1.2, 1],
-                  opacity: [0.3, 0.5, 0.3],
-                }}
-                transition={{
-                  duration: 4,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-              <motion.div
-                className="absolute -bottom-4 -left-4 w-32 h-32 bg-blue-500/20 rounded-full blur-3xl"
-                animate={{
-                  scale: [1, 1.3, 1],
-                  opacity: [0.3, 0.5, 0.3],
-                }}
-                transition={{
-                  duration: 5,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                  delay: 1
-                }}
-              />
-            </motion.div>
-          </div>
-
-          {/* Stats */}
-          <motion.div 
-            className="grid grid-cols-2 md:grid-cols-4 gap-6 mt-20"
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.2, duration: 0.6 }}
-          >
-            {stats.map((stat, idx) => {
-              const Icon = stat.icon;
-              return (
-                <TiltCard key={idx}>
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: 1.2 + idx * 0.1, duration: 0.4 }}
-                    whileHover={{ 
-                      scale: 1.02,
-                      transition: { duration: 0.2 }
-                    }}
-                    className="bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl p-6 border border-gray-200/50 dark:border-white/10 text-center hover:border-gray-300 dark:hover:border-white/20 transition-all cursor-pointer shadow-sm hover:shadow-md"
-                  >
-                    <motion.div
-                      whileHover={{ scale: 1.1, rotate: 5 }}
-                      transition={{ duration: 0.2 }}
-                    >
-                      <Icon className="w-8 h-8 mx-auto mb-3 text-black dark:text-white" />
-                    </motion.div>
-                    <motion.p 
-                      className="text-3xl font-bold text-black dark:text-white mb-1"
-                      whileHover={{ scale: 1.05 }}
-                    >
-                      {stat.number}
-                    </motion.p>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{stat.label}</p>
-                  </motion.div>
-                </TiltCard>
-              );
-            })}
-          </motion.div>
-        </div>
-      </section>
-
-      {/* Featured Projects Section */}
-      <section id="featured" className="relative py-24 px-6 bg-gray-50 dark:bg-black overflow-hidden transition-colors">
-        {/* Grid Background */}
-        <GridBackground variant="lines" />
-        
-        <div className="max-w-7xl mx-auto relative z-10">
-          <motion.div 
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <motion.div 
-              className="inline-flex items-center gap-2 px-4 py-2 bg-black dark:bg-white text-white dark:text-black rounded-full mb-4"
-              whileHover={{ scale: 1.05 }}
-              transition={{ type: "spring", stiffness: 400 }}
-            >
-              <Sparkles className="w-4 h-4" />
-              <span className="text-sm font-semibold">Project Unggulan</span>
-            </motion.div>
-            <motion.h2 
-              className="text-4xl md:text-5xl font-bold text-black dark:text-white mb-4"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.2 }}
-            >
-              Project Pilihan
-            </motion.h2>
-            <motion.p 
-              className="text-xl text-gray-600 dark:text-gray-400 max-w-2xl mx-auto"
-              initial={{ opacity: 0 }}
-              whileInView={{ opacity: 1 }}
-              viewport={{ once: true }}
-              transition={{ delay: 0.3 }}
-            >
-              Lihat beberapa project terbaru dan project personal saya
-            </motion.p>
-          </motion.div>
-
-          {loading ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {[1, 2, 3].map((i) => (
-                <motion.div 
-                  key={i} 
-                  className="bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl p-6 shadow-sm animate-pulse border border-gray-200/50 dark:border-white/10"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.1 }}
-                >
-                  <div className="h-48 bg-gray-200 dark:bg-white/10 rounded-xl mb-4"></div>
-                  <div className="h-6 bg-gray-200 dark:bg-white/10 rounded w-3/4 mb-2"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-white/10 rounded w-1/2"></div>
-                </motion.div>
-              ))}
-            </div>
-          ) : featuredProjects.length > 0 ? (
-            <>
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {featuredProjects.map((project, index) => (
-                  <ProjectCard key={project.id} project={project} index={index} />
                 ))}
               </div>
-              <motion.div 
-                className="text-center mt-12"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.4 }}
-              >
-                <Link href="/projects">
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="inline-block px-8 py-4 bg-white dark:bg-white/5 border-2 border-black dark:border-white/20 text-black dark:text-white rounded-full font-bold hover:bg-gray-50 dark:hover:bg-white/10 backdrop-blur-xl transition-all cursor-pointer"
-                  >
-                    Lihat Semua Project
-                    <ArrowRight className="inline-block ml-2 w-5 h-5" />
-                  </motion.div>
-                </Link>
-              </motion.div>
-            </>
-          ) : (
-            <motion.div 
-              className="text-center py-16 bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-white/10 shadow-sm"
-              initial={{ opacity: 0, scale: 0.9 }}
-              whileInView={{ opacity: 1, scale: 1 }}
-              viewport={{ once: true }}
-              transition={{ duration: 0.5 }}
-            >
-              <motion.div
-                animate={{ 
-                  y: [0, -10, 0],
-                  rotate: [0, 5, -5, 0]
-                }}
-                transition={{ 
-                  duration: 3,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              >
-                <FolderOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              </motion.div>
-              <h3 className="text-xl font-semibold text-black dark:text-white mb-2">Belum Ada Project Unggulan</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-6">Mulai tambahkan project untuk memamerkan karya Anda!</p>
-              <Link href="/admin">
-                <motion.div
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="inline-block px-8 py-4 bg-black dark:bg-white text-white dark:text-black rounded-full font-bold hover:shadow-lg transition-all cursor-pointer"
-                >
-                  Tambah Project Pertama
-                </motion.div>
-              </Link>
-            </motion.div>
-          )}
+            ) : projects.length > 0 ? (
+              <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                {projects.map((project, i) => (
+                  <ProjectCard
+                    key={project.slug}
+                    project={project}
+                    index={i}
+                    showIndex
+                    priority={i < 3}
+                  />
+                ))}
+              </div>
+            ) : (
+              <Reveal>
+                <div className="flex flex-col items-center justify-center gap-4 rounded-2xl border border-dashed border-[var(--hairline)] bg-[var(--surface)]/50 px-6 py-20 text-center">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-[var(--hairline)] bg-[var(--surface-2)]">
+                    <Terminal className="h-5 w-5 text-[var(--muted)]" strokeWidth={1.75} />
+                  </span>
+                  <h3 className="text-base font-semibold">Belum ada project</h3>
+                  <p className="max-w-sm text-sm text-[var(--muted)]">
+                    Hubungkan Supabase lalu tambahkan project pertama Anda melalui panel admin.
+                  </p>
+                  <Button asChild variant="outline" size="sm" className="mt-2">
+                    <Link href="/admin/new">Tambah project</Link>
+                  </Button>
+                </div>
+              </Reveal>
+            )}
+          </div>
         </div>
       </section>
 
-      {/* Project Types Section */}
-      <section className="relative py-24 px-6 bg-white dark:bg-black transition-colors overflow-hidden">
-        <GridBackground variant="grid" />
-        
-        <div className="max-w-7xl mx-auto relative z-10">
-          <motion.div 
-            className="text-center mb-16"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.6 }}
-          >
-            <h2 className="text-4xl md:text-5xl font-bold text-black dark:text-white mb-4">
-              Semua Yang Anda Butuhkan
-            </h2>
-            <p className="text-xl text-gray-600 dark:text-gray-400">
-              Ekosistem portfolio lengkap yang menampilkan berbagai jenis project
-            </p>
-          </motion.div>
+      {/* ══════════════ CAPABILITIES ══════════════ */}
+      <section className="relative overflow-hidden px-4 py-20 sm:px-6 sm:py-28">
+        <GridBackground fade size={72} />
+        <div className="relative mx-auto w-full max-w-6xl">
+          <SectionHeading
+            eyebrow="Keahlian"
+            icon={Cpu}
+            title="Apa yang saya kerjakan"
+            description="Fokus pada kualitas kode, performa, dan pengalaman pengguna yang konsisten di setiap lapisan produk."
+          />
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* Card 1: Web Applications */}
-            <TiltCard>
-              <motion.div 
-                className="bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-gray-200/50 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 transition-all group h-full shadow-sm hover:shadow-md"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.1 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="w-14 h-14 bg-black dark:bg-white rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <FolderOpen className="w-7 h-7 text-white dark:text-black" />
+          <RevealGroup className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {CAPABILITIES.map(({ icon: Icon, title, description, tag }) => (
+              <RevealItem key={title}>
+                <div className="spotlight-card group h-full overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--surface)] p-6 transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-1.5 hover:border-[color-mix(in_oklab,var(--foreground)_22%,transparent)]">
+                  <div className="mb-5 flex items-center justify-between">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl border border-[var(--hairline)] bg-[var(--surface-2)] transition-colors duration-500 group-hover:bg-[var(--foreground)] group-hover:text-[var(--background)]">
+                      <Icon className="h-[1.15rem] w-[1.15rem]" strokeWidth={1.75} />
+                    </span>
+                    <span className="font-mono text-[0.625rem] uppercase tracking-[0.16em] text-[var(--faint)]">
+                      {tag}
+                    </span>
+                  </div>
+                  <h3 className="text-base font-semibold tracking-tight">{title}</h3>
+                  <p className="mt-2.5 text-sm leading-relaxed text-[var(--muted)]">{description}</p>
                 </div>
-                <div className="inline-block px-3 py-1 bg-black dark:bg-white text-white dark:text-black text-xs font-bold rounded-full mb-4">
-                  BUILD
-                </div>
-                <h3 className="text-2xl font-bold text-black dark:text-white mb-3">
-                  Aplikasi Web
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                  Aplikasi web full-stack dengan framework modern seperti React, Next.js, dan Node.js. Sistem CRUD lengkap dengan autentikasi dan integrasi database.
-                </p>
-              </motion.div>
-            </TiltCard>
-
-            {/* Card 2: UI/UX Projects */}
-            <TiltCard>
-              <motion.div 
-                className="bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-gray-200/50 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 transition-all group h-full shadow-sm hover:shadow-md"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.2 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="w-14 h-14 bg-black dark:bg-white rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <Sparkles className="w-7 h-7 text-white dark:text-black" />
-                </div>
-                <div className="inline-block px-3 py-1 bg-black dark:bg-white text-white dark:text-black text-xs font-bold rounded-full mb-4">
-                  DESIGN
-                </div>
-                <h3 className="text-2xl font-bold text-black dark:text-white mb-3">
-                  Desain UI/UX
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                  Interface pengguna yang responsif dan indah menggunakan Tailwind CSS, Material-UI, dan custom CSS. Desain mobile-first dengan animasi yang smooth.
-                </p>
-              </motion.div>
-            </TiltCard>
-
-            {/* Card 3: API & Backend */}
-            <TiltCard>
-              <motion.div 
-                className="bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-gray-200/50 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 transition-all group h-full shadow-sm hover:shadow-md"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.3 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="w-14 h-14 bg-black dark:bg-white rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <Code className="w-7 h-7 text-white dark:text-black" />
-                </div>
-                <div className="inline-block px-3 py-1 bg-black dark:bg-white text-white dark:text-black text-xs font-bold rounded-full mb-4">
-                  BACKEND
-                </div>
-                <h3 className="text-2xl font-bold text-black dark:text-white mb-3">
-                  API & Sistem Backend
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                  RESTful API, layanan backend Firebase, real-time database, dan cloud functions. Sistem autentikasi dan manajemen data yang aman.
-                </p>
-              </motion.div>
-            </TiltCard>
-
-            {/* Card 4: Open Source */}
-            <TiltCard>
-              <motion.div 
-                className="bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-gray-200/50 dark:border-white/10 hover:border-gray-300 dark:hover:border-white/20 transition-all group h-full shadow-sm hover:shadow-md"
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: 0.4 }}
-                whileHover={{ y: -5 }}
-              >
-                <div className="w-14 h-14 bg-black dark:bg-white rounded-xl flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                  <Github className="w-7 h-7 text-white dark:text-black" />
-                </div>
-                <div className="inline-block px-3 py-1 bg-black dark:bg-white text-white dark:text-black text-xs font-bold rounded-full mb-4">
-                  SHARE
-                </div>
-                <h3 className="text-2xl font-bold text-black dark:text-white mb-3">
-                  Project Open Source
-                </h3>
-                <p className="text-gray-600 dark:text-gray-400 leading-relaxed">
-                  Semua project dengan source code lengkap tersedia di GitHub. Dokumentasi detail, struktur kode yang bersih, dan panduan deployment.
-                </p>
-              </motion.div>
-            </TiltCard>
-          </div>
-
-          {/* Stats Bar */}
-          <motion.div 
-            className="mt-16 bg-white/90 dark:bg-white/5 backdrop-blur-xl rounded-2xl p-8 border border-gray-200/50 dark:border-white/10 transition-colors shadow-sm"
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ delay: 0.5 }}
-          >
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
-              <div>
-                <p className="text-4xl font-bold text-black dark:text-white mb-2">15+</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Aplikasi Web</p>
-              </div>
-              <div>
-                <p className="text-4xl font-bold text-black dark:text-white mb-2">8+</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Teknologi Dikuasai</p>
-              </div>
-              <div>
-                <p className="text-4xl font-bold text-black dark:text-white mb-2">100%</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Desain Responsif</p>
-              </div>
-              <div>
-                <p className="text-4xl font-bold text-black dark:text-white mb-2">24/7</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">Live Demo</p>
-              </div>
-            </div>
-          </motion.div>
+              </RevealItem>
+            ))}
+          </RevealGroup>
         </div>
       </section>
 
-      {/* Tech Stack Section - NEW with SVG Icons & Grid Background */}
-      <TechStackSection />
+      {/* ══════════════ PROCESS ══════════════ */}
+      <section className="relative px-4 py-20 sm:px-6 sm:py-28">
+        <div className="mx-auto w-full max-w-6xl">
+          <SectionHeading
+            eyebrow="Alur kerja"
+            icon={Layers}
+            title="Dari ide menjadi produk"
+            description="Pendekatan terstruktur agar setiap keputusan teknis selalu kembali pada kebutuhan pengguna."
+            align="left"
+          />
 
-      {/* CTA Section */}
-      <section className="relative py-24 px-6 bg-black dark:bg-black text-white overflow-hidden">
-        <GridBackground variant="dots" className="opacity-10" />
-        
-        <div className="max-w-4xl mx-auto text-center relative z-10">
-          <h2 className="text-4xl md:text-5xl font-bold mb-6">
-            Interested in My Work?
-          </h2>
-          <p className="text-xl text-gray-400 mb-10 leading-relaxed">
-            Explore all my projects or get in touch to discuss potential collaborations.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/projects">
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="px-12 py-5 bg-white text-black rounded-full font-bold text-lg hover:shadow-2xl transition-all cursor-pointer"
-              >
-                View All Projects
-              </motion.div>
-            </Link>
-            <a href="https://github.com/vanx313" target="_blank" rel="noopener noreferrer">
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className="px-12 py-5 bg-white/5 border-2 border-white/20 text-white rounded-full font-bold text-lg hover:bg-white/10 backdrop-blur-xl transition-all flex items-center justify-center gap-2 cursor-pointer"
-              >
-                <Github className="w-5 h-5" />
-                GitHub Profile
-              </motion.div>
-            </a>
-          </div>
-          <p className="mt-8 text-sm text-gray-500 flex items-center justify-center gap-6 flex-wrap">
-            <span className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4" />
-              Open Source
-            </span>
-            <span className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4" />
-              Live Demos
-            </span>
-            <span className="flex items-center gap-2">
-              <CheckCircle className="w-4 h-4" />
-              Full Code Access
-            </span>
-          </p>
+          <RevealGroup className="mt-12 grid gap-px overflow-hidden rounded-2xl border border-[var(--hairline)] bg-[var(--hairline)] sm:grid-cols-2 lg:grid-cols-4">
+            {PROCESS.map(({ icon: Icon, step, title, description }) => (
+              <RevealItem key={step}>
+                <div className="group h-full bg-[var(--surface)] p-6 transition-colors duration-500 hover:bg-[var(--surface-2)]">
+                  <div className="mb-5 flex items-center justify-between">
+                    <Icon className="h-5 w-5 text-[var(--muted)] transition-transform duration-500 group-hover:scale-110" strokeWidth={1.75} />
+                    <span className="font-mono text-[0.6875rem] tracking-[0.2em] text-[var(--faint)]">
+                      {step}
+                    </span>
+                  </div>
+                  <h3 className="text-[0.9375rem] font-semibold tracking-tight">{title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--muted)]">{description}</p>
+                </div>
+              </RevealItem>
+            ))}
+          </RevealGroup>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 px-6 border-t border-gray-200 dark:border-white/10 bg-white dark:bg-black transition-colors">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-black dark:bg-white rounded-lg flex items-center justify-center transition-colors">
-                <Terminal className="w-6 h-6 text-white dark:text-black" />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xl font-bold text-black dark:text-white">Portfolio</span>
+      {/* ══════════════ CTA ══════════════ */}
+      <section className="relative px-4 pb-4 sm:px-6">
+        <Reveal direction="scale">
+          <div className="relative mx-auto w-full max-w-6xl overflow-hidden rounded-3xl border border-[var(--hairline)] bg-[var(--surface)] px-6 py-16 text-center sm:px-12 sm:py-20">
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_60%_70%_at_50%_0%,color-mix(in_oklab,var(--foreground)_10%,transparent),transparent_70%)]" />
+            <GridBackground fade size={48} />
+
+            <div className="relative">
+              <span className="eyebrow">Mari berkolaborasi</span>
+              <h2 className="text-display mx-auto mt-5 max-w-2xl text-3xl sm:text-[2.75rem]">
+                <span className="text-gradient">Punya ide yang ingin diwujudkan?</span>
+              </h2>
+              <p className="mx-auto mt-5 max-w-xl text-[0.9375rem] leading-relaxed text-[var(--muted)]">
+                Ceritakan kebutuhan Anda — saya bantu wujudkan menjadi produk digital yang rapi,
+                cepat, dan siap berkembang.
+              </p>
+
+              <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+                <Button asChild size="lg" className="group">
+                  <a href="mailto:hello@example.com">
+                    Kirim pesan
+                    <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
+                  </a>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <a href="https://github.com/" target="_blank" rel="noopener noreferrer">
+                    <Github className="h-4 w-4" />
+                    GitHub
+                  </a>
+                </Button>
               </div>
             </div>
-            
-            <div className="flex items-center gap-8">
-              <Link href="/projects" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white text-sm font-medium transition-colors">
-                All Projects
-              </Link>
-              <Link href="/about" className="text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white text-sm font-medium transition-colors">
-                About Me
-              </Link>
-              <a 
-                href="https://github.com/vanx313" 
-                target="_blank" 
-                rel="noopener noreferrer" 
-                className="flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white transition-colors group"
-              >
-                <Github className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                <span className="text-sm font-medium">GitHub</span>
-              </a>
-            </div>
           </div>
-          
-          <div className="mt-10 pt-8 border-t border-gray-200 dark:border-white/10 text-center">
-            <p className="text-gray-600 dark:text-gray-400 text-sm">
-              © {new Date().getFullYear()} Van-X313. Crafted with <span className="text-red-500">❤️</span> for showcasing amazing projects
-            </p>
-          </div>
-        </div>
-      </footer>
+        </Reveal>
+      </section>
     </div>
   );
 }
