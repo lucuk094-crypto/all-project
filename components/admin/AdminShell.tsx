@@ -13,6 +13,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { GridBackground } from '@/components/GridBackground';
 import { Skeleton } from '@/components/ui/badge';
+import { checkSession, logoutAdmin } from '@/lib/adminApi';
 
 interface AdminShellProps {
   title: string;
@@ -21,25 +22,34 @@ interface AdminShellProps {
   children: React.ReactNode;
 }
 
-/** Shared admin chrome: auth guard + page header. */
+/**
+ * Shared admin chrome.
+ * The session lives in an HttpOnly cookie — the client only asks the server
+ * whether it is still valid. Nothing sensitive is stored in localStorage.
+ */
 export default function AdminShell({ title, subtitle, action, children }: AdminShellProps) {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    const id = requestAnimationFrame(() => {
-      const ok = localStorage.getItem('admin_authenticated') === 'true';
+    let alive = true;
+    (async () => {
+      const ok = await checkSession();
+      if (!alive) return;
       setAllowed(ok);
       setReady(true);
       if (!ok) router.replace('/admin/login');
-    });
-    return () => cancelAnimationFrame(id);
+    })();
+    return () => {
+      alive = false;
+    };
   }, [router]);
 
-  const logout = () => {
-    localStorage.removeItem('admin_authenticated');
+  const logout = async () => {
+    await logoutAdmin();
     router.replace('/admin/login');
+    router.refresh();
   };
 
   if (!ready) {

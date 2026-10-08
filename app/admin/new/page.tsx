@@ -5,9 +5,7 @@ import toast from 'react-hot-toast';
 import slugify from 'slugify';
 import AdminShell from '@/components/admin/AdminShell';
 import ProjectForm, { type ProjectFormValues } from '@/components/admin/ProjectForm';
-import { createProject } from '@/lib/supabaseProjectService';
-import { uploadProjectBanner } from '@/lib/supabaseStorageService';
-import { logError } from '@/lib/errorLogger';
+import { createProjectApi, uploadBannerApi } from '@/lib/adminApi';
 
 export default function NewProjectPage() {
   const router = useRouter();
@@ -19,7 +17,7 @@ export default function NewProjectPage() {
       let bannerUrl = '';
       if (bannerFile) {
         try {
-          bannerUrl = await uploadProjectBanner(bannerFile, slug);
+          bannerUrl = await uploadBannerApi(bannerFile, slug);
         } catch (uploadError) {
           const message =
             uploadError instanceof Error ? uploadError.message : 'Gagal mengunggah banner';
@@ -28,7 +26,7 @@ export default function NewProjectPage() {
         }
       }
 
-      await createProject({
+      await createProjectApi({
         slug,
         title: values.title,
         tagline: values.tagline,
@@ -51,7 +49,6 @@ export default function NewProjectPage() {
       toast.success('Project berhasil dibuat');
       router.push('/admin/dashboard');
     } catch (error) {
-      logError('NewProjectPage', error);
       const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
       toast.error(`Gagal membuat project: ${message}`);
     }

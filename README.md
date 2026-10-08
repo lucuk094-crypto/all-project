@@ -66,11 +66,21 @@ npm run dev                  # http://localhost:3000
 
 Salin `.env.example` menjadi `.env.local`:
 
-```env
-NEXT_PUBLIC_SUPABASE_URL=https://xxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOi...
-NEXT_PUBLIC_ADMIN_PASSWORD=ganti-ini
+| Variabel | Keterangan | Boleh di browser? |
+|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | URL project Supabase | ✅ ya |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Anon key (hanya untuk membaca) | ✅ ya |
+| `SUPABASE_SERVICE_ROLE_KEY` | Service role key — **melewati RLS**, dipakai server untuk menulis | 🚫 tidak |
+| `ADMIN_PASSWORD` | Kata sandi panel admin | 🚫 tidak |
+| `SESSION_SECRET` | Kunci tanda tangan cookie sesi | 🚫 tidak |
+
+```bash
+openssl rand -hex 32   # untuk membuat SESSION_SECRET
 ```
+
+> Tiga variabel terakhir **tidak** memakai awalan `NEXT_PUBLIC_`.
+> Sebelumnya `NEXT_PUBLIC_ADMIN_PASSWORD` dipakai, sehingga kata sandi ikut
+> ter-unggah ke dalam bundle dan bisa dibaca siapa pun lewat *View Source*.
 
 > **Mode demo:** selama variabel di atas belum diisi, situs menampilkan 6 project contoh
 > (banner SVG ada di `public/demo/`) lengkap dengan penanda "Mode demo" di halaman.
@@ -92,10 +102,11 @@ npm run typecheck  # pengecekan tipe TypeScript
 ## Setup Supabase
 
 1. Buat project di [supabase.com](https://supabase.com)
-2. Buka **SQL Editor**, jalankan isi `SUPABASE_SETUP.sql`
-3. Buat bucket **Storage** bernama `project-banners` dengan akses **Public**
-4. Salin URL dan anon key dari *Project Settings → API* ke `.env.local`
-5. Buka `/test-supabase` untuk memverifikasi konfigurasi
+2. Buka **SQL Editor**, jalankan `SUPABASE_SETUP.sql`
+3. Masih di SQL Editor, jalankan **`SECURITY_FIX.sql`** — wajib, ini menutup akses tulis publik
+4. Buat bucket **Storage** bernama `project-banners` dengan akses **Public**
+5. Salin URL, anon key, dan **service role key** dari *Project Settings → API* ke `.env.local`
+6. Masuk ke `/admin/login`, lalu buka `/test-supabase` untuk memverifikasi
 
 Login admin ada di `/admin/login`.
 
@@ -125,17 +136,38 @@ lib/
 
 ---
 
-## ⚠️ Catatan keamanan
+## Keamanan
 
-Fitur berikut **belum diperbaiki** dan sebaiknya dibereskan sebelum digunakan di produksi:
+Risiko berikut **sudah ditangani**:
 
-1. **Password admin terbaca publik** — `NEXT_PUBLIC_ADMIN_PASSWORD` di-inline ke bundle browser
-2. **Autentikasi berbasis `localStorage`** — bisa di-bypass dari DevTools; seharusnya memakai Supabase Auth atau cookie HttpOnly
-3. **RLS policy `USING (true)`** — siapa pun yang memiliki anon key dapat menambah, mengubah, dan menghapus project
-4. **`/test-supabase`** belum dilindungi di produksi
-5. Belum ada security headers (CSP, HSTS)
+| Ancaman | Sebelum | Sesudah |
+|---|---|---|
+| Siapa pun bisa menulis ke database | RLS `USING (true)` → INSERT/UPDATE/DELETE terbuka untuk anon key | RLS hanya mengizinkan `SELECT` untuk baris `published`. Penulisan wajib lewat server. |
+| Kata sandi admin terbaca publik | `NEXT_PUBLIC_ADMIN_PASSWORD` di-inline ke bundle browser | `ADMIN_PASSWORD` hanya ada di server; klien mengirim kata sandi ke `/api/admin/login` |
+| Login bisa di-bypass | `localStorage.setItem('admin_authenticated','true')` | Cookie **HttpOnly** bertanda tangan HMAC-SHA256, divalidasi di middleware dan di tiap route handler |
+| `/admin` bisa dibuka langsung | Tidak ada pemeriksaan server | `proxy.ts` mengarahkan ke login bila sesi tidak valid |
+| Halaman debug terbuka | `/test-supabase` bisa diakses siapa pun | Dilindungi sesi admin yang sama |
+| Brute-force kata sandi | Tanpa batas | Maksimal 5 percobaan per menit per IP |
+| Unggah berkas sembarangan | Hanya divalidasi di browser | Divalidasi di server: tipe MIME + batas 5 MB |
+| Header keamanan | Tidak ada | CSP, `X-Frame-Options: DENY`, HSTS, `nosniff`, Referrer-Policy, Permissions-Policy |
 
----
+### Yang perlu Anda lakukan
+
+1. **Jalankan `SECURITY_FIX.sql`** di Supabase Dashboard → SQL Editor.
+   Ini menutup RLS yang masih terbuka di database Anda.
+2. **Tambahkan 3 variabel baru** di Vercel → *Settings → Environment Variables*:
+   `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD`, `SESSION_SECRET`
+3. **Hapus** `NEXT_PUBLIC_ADMIN_PASSWORD` yang lama dari Vercel.
+4. **Redeploy** agar perubahan diterapkan.
+
+### Catatan
+
+- `lib/supabaseProjectService.ts` sekarang **hanya berisi fungsi baca**.
+  Semua operasi tulis ada di `app/api/admin/*` dan memakai service role key.
+- `lib/supabaseStorageService.ts` sudah dihapus — unggahan kini lewat
+  `/api/admin/upload` yang memvalidasi berkas di server.
+- Throttle login disimpan di memori per instance. Untuk perlindungan
+  tingkat produksi yang lebih kuat, tambahkan Vercel WAF / Upstash Redis.
 
 ## Lisensi
 

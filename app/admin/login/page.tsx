@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Eye, EyeOff, KeyRound, Lock, ShieldCheck } from 'lucide-react';
@@ -10,17 +10,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { GridBackground } from '@/components/GridBackground';
+import { loginAdmin } from '@/lib/adminApi';
 
-export default function AdminLoginPage() {
+function AdminLoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const ADMIN_PASSWORD = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'admin123';
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -30,18 +31,19 @@ export default function AdminLoginPage() {
     }
 
     setLoading(true);
+    try {
+      // Password is only ever sent to the server — it never lives in the bundle.
+      await loginAdmin(password);
+      toast.success('Berhasil masuk');
 
-    // Brief delay so the transition feels deliberate, not abrupt.
-    window.setTimeout(() => {
-      if (password === ADMIN_PASSWORD) {
-        localStorage.setItem('admin_authenticated', 'true');
-        toast.success('Berhasil masuk');
-        router.push('/admin/dashboard');
-      } else {
-        setError('Kata sandi salah. Silakan coba lagi.');
-        setLoading(false);
-      }
-    }, 420);
+      const from = searchParams.get('from');
+      router.replace(from && from.startsWith('/admin') ? from : '/admin/dashboard');
+      router.refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Kata sandi salah.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -108,7 +110,7 @@ export default function AdminLoginPage() {
 
           <div className="mt-6 flex items-center justify-center gap-1.5 text-[0.6875rem] text-[var(--faint)]">
             <ShieldCheck className="h-3 w-3" strokeWidth={1.75} />
-            Hanya untuk administrator
+            Sesi dienkripsi &amp; hanya tersimpan di server
           </div>
         </div>
 
@@ -123,5 +125,19 @@ export default function AdminLoginPage() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+export default function AdminLoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[78vh] items-center justify-center">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[var(--faint)] border-t-transparent" />
+        </div>
+      }
+    >
+      <AdminLoginForm />
+    </Suspense>
   );
 }

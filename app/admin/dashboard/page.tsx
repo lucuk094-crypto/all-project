@@ -19,14 +19,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge, Skeleton } from '@/components/ui/badge';
 import AdminShell from '@/components/admin/AdminShell';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import {
-  deleteProject,
-  getAllProjects,
-  updateProject,
-  type Project,
-} from '@/lib/supabaseProjectService';
-import { logError } from '@/lib/errorLogger';
+  deleteProjectApi,
+  fetchProjects,
+  updateProjectApi,
+} from '@/lib/adminApi';
+import type { Project } from '@/lib/supabaseProjectService';
 
 export default function AdminDashboardPage() {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -34,14 +32,16 @@ export default function AdminDashboardPage() {
   const [query, setQuery] = useState('');
   const [pendingDelete, setPendingDelete] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [loadError, setLoadError] = useState('');
 
   const load = async () => {
     try {
-      const data = await getAllProjects();
-      setProjects(data);
+      setLoadError('');
+      setProjects(await fetchProjects());
     } catch (error) {
-      logError('AdminDashboard', error);
-      toast.error('Gagal memuat daftar project');
+      const message = error instanceof Error ? error.message : 'Gagal memuat daftar project';
+      setLoadError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -75,14 +75,15 @@ export default function AdminDashboardPage() {
   const toggleFeatured = async (project: Project) => {
     if (!project.id) return;
     try {
-      await updateProject(project.id, { featured: !project.featured });
+      await updateProjectApi(project.id, { featured: !project.featured });
       setProjects((prev) =>
         prev.map((p) => (p.id === project.id ? { ...p, featured: !p.featured } : p)),
       );
       toast.success(project.featured ? 'Dihapus dari unggulan' : 'Ditandai sebagai unggulan');
     } catch (error) {
-      logError('AdminDashboard - toggleFeatured', error);
-      toast.error('Gagal memperbarui status unggulan');
+      toast.error(
+        error instanceof Error ? error.message : 'Gagal memperbarui status unggulan',
+      );
     }
   };
 
@@ -90,13 +91,12 @@ export default function AdminDashboardPage() {
     if (!pendingDelete?.id) return;
     setDeleting(true);
     try {
-      await deleteProject(pendingDelete.id);
+      await deleteProjectApi(pendingDelete.id);
       setProjects((prev) => prev.filter((p) => p.id !== pendingDelete.id));
       toast.success('Project dihapus');
       setPendingDelete(null);
     } catch (error) {
-      logError('AdminDashboard - delete', error);
-      toast.error('Gagal menghapus project');
+      toast.error(error instanceof Error ? error.message : 'Gagal menghapus project');
     } finally {
       setDeleting(false);
     }
@@ -116,17 +116,13 @@ export default function AdminDashboardPage() {
       }
     >
       <div className="space-y-6">
-        {/* Supabase warning */}
-        {!isSupabaseConfigured && (
+        {/* Server-side error surfaced to the admin */}
+        {loadError && (
           <div className="flex items-start gap-3 rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" strokeWidth={1.9} />
             <div className="text-sm">
-              <p className="font-medium text-amber-500">Supabase belum dikonfigurasi</p>
-              <p className="mt-1 text-[var(--muted)]">
-                Isi <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_URL</code> dan{' '}
-                <code className="font-mono text-xs">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> pada file{' '}
-                <code className="font-mono text-xs">.env.local</code>, lalu muat ulang halaman.
-              </p>
+              <p className="font-medium text-amber-500">Tidak dapat memuat data</p>
+              <p className="mt-1 text-[var(--muted)]">{loadError}</p>
             </div>
           </div>
         )}

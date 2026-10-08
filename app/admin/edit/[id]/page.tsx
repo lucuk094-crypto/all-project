@@ -6,9 +6,8 @@ import toast from 'react-hot-toast';
 import AdminShell from '@/components/admin/AdminShell';
 import ProjectForm, { type ProjectFormValues } from '@/components/admin/ProjectForm';
 import { Skeleton } from '@/components/ui/badge';
-import { getProjectById, updateProject, type Project } from '@/lib/supabaseProjectService';
-import { uploadProjectBanner } from '@/lib/supabaseStorageService';
-import { logError } from '@/lib/errorLogger';
+import { fetchProject, updateProjectApi, uploadBannerApi } from '@/lib/adminApi';
+import type { Project } from '@/lib/supabaseProjectService';
 
 export default function EditProjectPage() {
   const params = useParams();
@@ -23,11 +22,12 @@ export default function EditProjectPage() {
     let alive = true;
     (async () => {
       try {
-        const data = await getProjectById(id);
+        const data = await fetchProject(id);
         if (alive) setProject(data);
       } catch (error) {
-        logError('EditProjectPage', error);
-        toast.error('Gagal memuat data project');
+        if (alive) {
+          toast.error(error instanceof Error ? error.message : 'Gagal memuat data project');
+        }
       } finally {
         if (alive) setLoading(false);
       }
@@ -44,10 +44,10 @@ export default function EditProjectPage() {
     try {
       let bannerUrl = project.banner;
       if (bannerFile) {
-        bannerUrl = await uploadProjectBanner(bannerFile, project.slug);
+        bannerUrl = await uploadBannerApi(bannerFile, project.slug);
       }
 
-      await updateProject(project.id, {
+      await updateProjectApi(project.id, {
         title: values.title,
         tagline: values.tagline,
         description: values.description,
@@ -68,7 +68,6 @@ export default function EditProjectPage() {
       toast.success('Perubahan tersimpan');
       router.push('/admin/dashboard');
     } catch (error) {
-      logError('EditProjectPage - handleSubmit', error);
       const message = error instanceof Error ? error.message : 'Terjadi kesalahan';
       toast.error(`Gagal menyimpan: ${message}`);
     } finally {
