@@ -1,0 +1,35 @@
+# Pipeline GitLab — menjalankan pemeriksaan kualitas sebelum deploy.
+# Vercel tetap yang melakukan build & deploy; pipeline ini hanya sebagai
+# jaring pengaman supaya kode bermasalah ketahuan lebih awal.
+
+stages:
+  - quality
+  - build
+
+default:
+  image: node:22-alpine
+  cache:
+    key:
+      files:
+        - package-lock.json
+    paths:
+      - node_modules/
+  before_script:
+    - npm ci --no-audit --no-fund
+
+quality:
+  stage: quality
+  script:
+    - npm run lint
+    - npm run typecheck
+
+build:
+  stage: build
+  script:
+    - npm run build
+  variables:
+    NEXT_TELEMETRY_DISABLED: "1"
+  artifacts:
+    paths:
+      - .next/
+    expire_in: 1 day

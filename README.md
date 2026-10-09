@@ -10,6 +10,10 @@ Portfolio website dengan tema **Clean Minimalist Modern Premium** — monokrom, 
 
 **Live:** https://dashbord-all-project.vercel.app
 
+> **Perlu panduan deploy/langkah manual?** Baca **[PANDUAN_DEPLOY.md](PANDUAN_DEPLOY.md)**
+> — berisi langkah demi langkah untuk mengatur environment variable di Vercel
+> dan menjalankan skrip pengamanan database.
+
 ---
 
 ## Fitur
