@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { notFound } from 'next/navigation';
 import ProjectDetailView from '@/components/ProjectDetailView';
 import { getProjectBySlug } from '@/lib/supabaseProjectService';
 import { getDemoBySlug } from '@/lib/demoProjects';
@@ -41,6 +42,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function ProjectDetailPage({ params }: PageProps) {
   const { slug } = await params;
   const project = (await getProjectBySlug(slug)) ?? getDemoBySlug(slug);
+
+  // Slug tidak ditemukan atau masih draft → HTTP 404 (bukan 200 "soft 404").
+  if (!project) notFound();
 
   return <ProjectDetailView project={project} />;
 }
